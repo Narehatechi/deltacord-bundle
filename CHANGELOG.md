@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.2.0...v1.3.0) (2026-10-22)
+
+
+### Features
+
+* DC icon in Determination Mono for the settings menu ([19e7d61](https://github.com/Narehatechi/deltacord-bundle/commit/19e7d61ca8365a08238aecaf39175f8ec1c02753))
+
 # [1.2.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.1.0...v1.2.0) (2026-10-22)
 
 
