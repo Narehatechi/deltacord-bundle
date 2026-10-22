@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.1.0...v1.2.0) (2026-10-22)
+
+
+### Features
+
+* replace leftover Revenge logo with the Deltacord delta mark ([1de9fbc](https://github.com/Narehatechi/deltacord-bundle/commit/1de9fbc3f5368e1b31813f86abd776fcc9027f6b))
+
 # [1.1.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.0.0...v1.1.0) (2026-10-22)
 
 
