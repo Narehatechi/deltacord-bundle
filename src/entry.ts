@@ -5,7 +5,7 @@ const { instead } = require("spitroast");
 // @ts-ignore - window is defined later in the bundle, so we assign it early
 globalThis.window = globalThis;
 
-async function initializeUndercord() {
+async function initializeDeltacord() {
     try {
         // Make 'freeze' and 'seal' do nothing
         Object.freeze = Object.seal = Object;
@@ -18,9 +18,9 @@ async function initializeUndercord() {
 
         console.log(stack ?? e?.toString?.() ?? e);
         alert([
-            "Failed to load Undercord!\n",
+            "Failed to load Deltacord!\n",
             `Build Number: ${ClientInfoManager.getConstants().Build}`,
-            `Undercord: ${version}`,
+            `Deltacord: ${version}`,
             stack || e?.toString?.(),
         ].join("\n"));
     }
@@ -31,7 +31,7 @@ if (typeof window.__r === "undefined") {
     var _requireFunc: any;
 
     // Calls from the native side are deferred until the index.ts(x) is loaded
-    // Undercord delays the execution of index.ts(x) because Undercord's initialization is asynchronous
+    // Deltacord delays the execution of index.ts(x) because Deltacord's initialization is asynchronous
     interface DeferredQueue {
         object: any;
         method: string;
@@ -84,7 +84,7 @@ if (typeof window.__r === "undefined") {
             deferMethodExecution(
                 batchedBridge,
                 "callFunctionReturnFlushedQueue",
-                // If the call is to AppRegistry, we want to defer it because it is not yet registered (Undercord delays it)
+                // If the call is to AppRegistry, we want to defer it because it is not yet registered (Deltacord delays it)
                 // Same goes to the non-callable modules, which are not registered yet, so we ensure that only registered ones can get through
                 (...args) => args[0] === "AppRegistry" || !batchedBridge.getCallableModule(args[0]),
                 ({ args }) => {
@@ -102,7 +102,7 @@ if (typeof window.__r === "undefined") {
         }
 
         const startDiscord = async () => {
-            await initializeUndercord();
+            await initializeDeltacord();
             
             for (const unpatch of unpatches) unpatch();
             unpatches.length = 0;
@@ -143,7 +143,7 @@ if (typeof window.__r === "undefined") {
         }
     });
 } else {
-    // It is too late to late to hook __r, so we just initialize Undercord here
+    // It is too late to late to hook __r, so we just initialize Deltacord here
     // Likely because of using the legacy loader (from Vendetta)
-    initializeUndercord();
+    initializeDeltacord();
 }

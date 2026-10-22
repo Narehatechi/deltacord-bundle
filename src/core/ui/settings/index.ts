@@ -1,4 +1,4 @@
-import PyoncordIcon from "@assets/icons/undercord.png";
+import PyoncordIcon from "@assets/icons/deltacord.png";
 import { Strings } from "@core/i18n";
 import { useProxy } from "@core/vendetta/storage";
 import { findAssetId } from "@lib/api/assets";

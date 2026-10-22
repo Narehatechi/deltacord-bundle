@@ -37,7 +37,7 @@ export default function AssetDisplay({ asset }: AssetDisplayProps) {
                     />
             }
             onPress={() =>
-                openAlert("undercord-asset-display-details", <AlertModal
+                openAlert("deltacord-asset-display-details", <AlertModal
                     title={asset.name}
                     content={`Index: ${asset.id}\nModule ID: ${asset.moduleId}\nType: ${asset.type}`}
                     extraContent={

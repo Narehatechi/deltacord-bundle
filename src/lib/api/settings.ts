@@ -27,7 +27,7 @@ export const loaderConfig = wrapSync(createStorage<LoaderConfig>(
     createFileBackend(getLoaderConfigPath(), {
         customLoadUrl: {
             enabled: false,
-            url: "http://localhost:4040/undercord.js"
+            url: "http://localhost:4040/deltacord.js"
         }
     })
 ));

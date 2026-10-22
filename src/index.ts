@@ -53,5 +53,5 @@ export default async () => {
     updateFonts();
 
     // We good :)
-    logger.log("Undercord is ready!");
+    logger.log("Deltacord is ready!");
 };

@@ -17,7 +17,7 @@ const { openAlert } = lazyDestructure(() => findByProps("openAlert", "dismissAle
 const { AlertModal, AlertActionButton } = lazyDestructure(() => findByProps("AlertModal", "AlertActions"));
 
 function promptDetachConfirmationForThen(fontName: string | undefined, cb: () => void) {
-    if (fontName && fonts[fontName].source) openAlert("undercord-fonts-detach-source-confirmation", <AlertModal
+    if (fontName && fonts[fontName].source) openAlert("deltacord-fonts-detach-source-confirmation", <AlertModal
         title="Detach font pack URL?"
         content="You need to detach the font pack URL from this font pack before you can manually edit its font entries. Do you want to detach the font pack URL?"
         actions={
@@ -47,7 +47,7 @@ function guessFontName(urls: string[]) {
     return shortest?.replace(/-[A-Za-z]*$/, "") || null;
 }
 
-function UndercordFontsExtractor({ fonts, setName }: {
+function DeltacordFontsExtractor({ fonts, setName }: {
     fonts: Record<string, string>;
     setName: (name: string) => void;
 }) {
@@ -288,7 +288,7 @@ export default function FontEditor(props: {
                         label={Strings.LABEL_EXTRACT_FONTS_FROM_THEME}
                         subLabel={Strings.DESC_EXTRACT_FONTS_FROM_THEME}
                         icon={<TableRow.Icon source={findAssetId("HammerIcon")} />}
-                        onPress={() => promptActionSheet(UndercordFontsExtractor, fontEntries, { setName })}
+                        onPress={() => promptActionSheet(DeltacordFontsExtractor, fontEntries, { setName })}
                     />}
                     <TableRow
                         label={"Import font entries from a link"}

@@ -31,7 +31,7 @@ let context = null;
 const config = {
     entryPoints: ["src/entry.ts"],
     bundle: true,
-    outfile: "dist/undercord.js",
+    outfile: "dist/deltacord.js",
     format: "iife",
     splitting: false,
     external: [
@@ -43,7 +43,7 @@ const config = {
         "const-and-let": false
     },
     footer: {
-        js: "//# sourceURL=undercord"
+        js: "//# sourceURL=deltacord"
     },
     loader: {
         ".png": "dataurl",

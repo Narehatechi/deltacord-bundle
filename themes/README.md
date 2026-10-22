@@ -1,19 +1,19 @@
-# Undercord themes
+# Deltacord themes
 
 ## Undertale
 
 The Undertale theme uses pitch-black backgrounds, white text and borders like the battle box, yellow links and mentions, orange buttons, and red for danger.
 
-**Install it in Undercord:** go to Settings → Undercord → Themes → **+**, then paste:
+**Install it in Deltacord:** go to Settings → Deltacord → Themes → **+**, then paste:
 
 ```
-https://raw.githubusercontent.com/Narehatechi/undercord-bundle/main/themes/undertale.json
+https://raw.githubusercontent.com/Narehatechi/deltacord-bundle/main/themes/undertale.json
 ```
 
-**Optional pixel font:** go to Settings → Undercord → Fonts → **+**, then paste:
+**Optional pixel font:** go to Settings → Deltacord → Fonts → **+**, then paste:
 
 ```
-https://raw.githubusercontent.com/Narehatechi/undercord-bundle/main/themes/undertale-font.json
+https://raw.githubusercontent.com/Narehatechi/deltacord-bundle/main/themes/undertale-font.json
 ```
 
 Restart Discord after picking either one.

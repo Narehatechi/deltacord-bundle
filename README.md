@@ -33,9 +33,9 @@
    </a>
 </p>
 
-# 👊 Undercord
+# 👊 Deltacord
 
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/Narehatechi/undercord-bundle/release.yml)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/Narehatechi/deltacord-bundle/release.yml)
 [![3-Clause BSD License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 A client modification for Discord Android, continuation of [Bunny](https://github.com/pyoncord/Bunny).
@@ -48,28 +48,28 @@ A client modification for Discord Android, continuation of [Bunny](https://githu
 
 ## ⬇️ Download
 
-This repository releases JavaScript bundles for loaders to execute. These are the official Undercord loaders:
+This repository releases JavaScript bundles for loaders to execute. These are the official Deltacord loaders:
 
 ### Android
 
-- **🩹 Root with Xposed**: [UndercordXposed](https://github.com/Narehatechi/undercord-xposed/releases/latest)
-- **📵 Non-root**: [Undercord Manager](https://github.com/Narehatechi/undercord-manager/releases/latest)
+- **🩹 Root with Xposed**: [DeltacordXposed](https://github.com/Narehatechi/deltacord-xposed/releases/latest)
+- **📵 Non-root**: [Deltacord Manager](https://github.com/Narehatechi/deltacord-manager/releases/latest)
 
 ## 📚 Everything else
 
 ### 📙 Contributing
 
-Thank you for considering contributing to Undercord.
+Thank you for considering contributing to Deltacord.
 You can find the contribution guidelines [here](CONTRIBUTING.md).
 
 ### 🛠️ Building
 
-To build Undercord bundle, you can follow the [documentation](/docs).
+To build Deltacord bundle, you can follow the [documentation](/docs).
 
 ### 📃 Documentation
 
-You can find the documentation of Undercord bundle [here](/docs).
+You can find the documentation of Deltacord bundle [here](/docs).
 
 ## 📜 Licence
 
-Undercord bundle is licensed under the 3-Clause BSD license. Please see the [license file](LICENSE) for more information.
+Deltacord bundle is licensed under the 3-Clause BSD license. Please see the [license file](LICENSE) for more information.

@@ -1,4 +1,4 @@
-//! Adapted from https://github.com/Narehatechi/undercord-bundle-next/blob/cb3b12f2eedd46c29d289d578502561c9b56e30c/src/plugins/start/developer-kit/devtools.ts
+//! Adapted from https://github.com/Narehatechi/deltacord-bundle-next/blob/cb3b12f2eedd46c29d289d578502561c9b56e30c/src/plugins/start/developer-kit/devtools.ts
 
 import { DevToolsClient } from "@revenge-mod/devtools-client";
 import { instead } from "../patcher";

@@ -98,7 +98,7 @@ export default function Developer() {
                                 defaultValue={loaderConfig.customLoadUrl.url}
                                 size="md"
                                 onChange={(v: string) => loaderConfig.customLoadUrl.url = v}
-                                placeholder="http://localhost:4040/undercord.js"
+                                placeholder="http://localhost:4040/deltacord.js"
                                 label={Strings.BUNNY_URL}
                             />} />}
                             {isReactDevToolsPreloaded() && isVendettaLoader() && <TableSwitchRow
@@ -118,7 +118,7 @@ export default function Developer() {
                             subLabel={Strings.CLEAR_BUNDLE_DESC}
                             icon={<TableRow.Icon source={findAssetId("TrashIcon")} variant="danger" />}
                             onPress={() => {
-                                openAlert("undercord-clear-bundle-reload-confirmation", <AlertModal
+                                openAlert("deltacord-clear-bundle-reload-confirmation", <AlertModal
                                     title={Strings.MODAL_RELOAD_REQUIRED}
                                     content={Strings.MODAL_RELOAD_REQUIRED_DESC}
                                     actions={
