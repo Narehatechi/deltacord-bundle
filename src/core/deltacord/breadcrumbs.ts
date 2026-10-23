@@ -19,6 +19,8 @@ export interface StartupRecord {
     opened: boolean;
     /** Plugins and Deltacord's after-startup work ran. */
     ready: boolean;
+    /** Discord's real screen is up (connected, or showing the login screen). */
+    uiReady?: boolean;
     /** Started without Deltacord's own additions. */
     minimal?: boolean;
     stages: { name: string; ms: number; }[];
@@ -140,6 +142,13 @@ export function markOpened() {
     if (!record) return;
     record.opened = true;
     stage("opening Discord");
+}
+
+/** Discord's real screen is up. The startup animation waits for this before it fades. */
+export function markUiReady(how: string) {
+    if (!record || record.uiReady) return;
+    record.uiReady = true;
+    stage(`Discord ready (${how})`, { quiet: true });
 }
 
 export function markReady() {

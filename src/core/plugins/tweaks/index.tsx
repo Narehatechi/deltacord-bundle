@@ -56,7 +56,8 @@ const noTracking: Tweak = {
         for (const props of [["trackWithMetadata"], ["track", "trackMaker"]]) {
             const mod = findByProps(...props);
             for (const key of props) {
-                if (typeof mod?.[key] === "function") undo.push(instead(key, mod, noop));
+                // Discord may wait on these (track(...).then...), so answer with a finished promise.
+                if (typeof mod?.[key] === "function") undo.push(instead(key, mod, () => Promise.resolve()));
             }
         }
 

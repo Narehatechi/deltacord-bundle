@@ -4,6 +4,7 @@ import { initFetchI18nStrings } from "@core/i18n";
 import { markDiscordStarting } from "@core/deltacord/crashguard";
 import { initDeltacordEarly, initDeltacordLate } from "@core/deltacord/init";
 import { guardStep } from "@core/deltacord/startup";
+import { watchForDiscordReady } from "@core/deltacord/discordReady";
 import { startMessageLoggerEarly } from "@core/plugins/messagelogger";
 import initSettings from "@core/ui/settings";
 import { initVendettaObject } from "@core/vendetta/api";
@@ -73,6 +74,11 @@ export default async () => {
 
     // Discord opens as soon as this function returns.
     markDiscordStarting();
+    try {
+        watchForDiscordReady();
+    } catch (e) {
+        console.error("[Deltacord] Couldn't watch for Discord being ready", e);
+    }
 
     // Assign window object
     window.bunny = lib;
@@ -81,8 +87,10 @@ export default async () => {
     initDebugger();
 
     // Once done, load Vendetta plugins
+    crumbs.stage("start: Vendetta plugins", { quiet: true });
     VdPluginManager.initPlugins()
         .then(u => lib.unload.push(u))
+        .finally(() => crumbs.stage("done: Vendetta plugins", { quiet: true }))
         .catch(() => alert("Failed to initialize Vendetta plugins"));
 
     // And then, load Bunny plugins, then Deltacord's after-startup work

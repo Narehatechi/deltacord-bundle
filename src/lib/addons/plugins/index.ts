@@ -1,4 +1,4 @@
-import { isMinimalStartup } from "@core/deltacord/breadcrumbs";
+import { isMinimalStartup, stage } from "@core/deltacord/breadcrumbs";
 import { getCorePlugins } from "@core/plugins";
 import { settings } from "@lib/api/settings";
 import { readFile, removeFile, writeFile } from "@lib/api/native/fs";
@@ -403,7 +403,13 @@ export async function initPlugins() {
     await Promise.allSettled([...registeredPlugins.keys()].map(async id => {
         if (minimal && id.startsWith("deltacord.")) return;
         if (isPluginEnabled(id) && (!safeMode || allowedInSafeMode(id))) {
-            await startPlugin(id);
+            // Recorded so a plugin that never finishes starting shows up in the stuck-startup report.
+            stage(`start: plugin ${id}`, { quiet: true });
+            try {
+                await startPlugin(id);
+            } finally {
+                stage(`done: plugin ${id}`, { quiet: true });
+            }
         }
     }));
 }
