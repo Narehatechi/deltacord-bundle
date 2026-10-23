@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.5.0...v1.6.0) (2026-10-23)
+
+
+### Features
+
+* Deltacord's themes come with the Determination font ([5185108](https://github.com/Narehatechi/deltacord-bundle/commit/51851080100cd0230615ad7075c1d5b5f5f8b464))
+
 # [1.5.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.4.0...v1.5.0) (2026-10-23)
 
 
