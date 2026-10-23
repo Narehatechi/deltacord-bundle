@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.7.0...v1.7.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* Discord can no longer get stuck on its logo ([1a3d1a5](https://github.com/Narehatechi/deltacord-bundle/commit/1a3d1a597c72de78b16b7b263f4d3753fa9033c5))
+
 # [1.7.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.6.0...v1.7.0) (2026-10-23)
 
 
