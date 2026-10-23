@@ -4,11 +4,15 @@ import { awaitStorage } from "@lib/api/storage";
 import { findAssetId } from "@lib/api/assets";
 import { openAlert } from "@lib/ui/alerts";
 import { showToast } from "@lib/ui/toasts";
+import { NavigationNative } from "@metro/common";
 import { AlertActionButton, AlertActions, AlertModal, Stack, TableRow, TableRowGroup, TableSwitchRow } from "@metro/common/components";
 import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 
+import { announceSave } from "@core/deltacord/extras";
+
 import { defineCorePlugin } from "..";
+import LogBrowser from "./browser";
 import { clearAllLogs, interceptMessages } from "./logger";
 import { patchRows } from "./rows";
 import { counts, getSettings, loadLogs, saveNow, Settings, settingsStore } from "./store";
@@ -16,6 +20,7 @@ import { counts, getSettings, loadLogs, saveNow, Settings, settingsStore } from 
 const PLUGIN_ID = "deltacord.messagelogger";
 let cleanups: (() => void)[] = [];
 let running = false;
+export const isLoggerRunning = () => running;
 
 function startLogger() {
     if (running) return;
@@ -51,6 +56,7 @@ function SettingsComponent() {
     useProxy(settingsStore);
     const settings = getSettings();
     const [stats, setStats] = useState(counts());
+    const navigation = NavigationNative.useNavigation();
 
     useEffect(() => {
         const timer = setInterval(() => setStats(counts()), 2000);
@@ -59,12 +65,25 @@ function SettingsComponent() {
 
     const toggle = (key: keyof Settings) => (value: boolean) => {
         settingsStore[key] = value;
+        announceSave();
         if (key === "persist" && value) saveNow();
     };
 
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
+                <TableRowGroup>
+                    <TableRow
+                        arrow
+                        label="Browse deleted messages"
+                        subLabel={`${stats.deleted} deleted · ${stats.edited} edited. Search, jump to them, or copy them.`}
+                        icon={icon("MagnifyingGlassIcon")}
+                        onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", {
+                            title: "Deleted messages",
+                            render: () => <LogBrowser />,
+                        })}
+                    />
+                </TableRowGroup>
                 <TableRowGroup title="Logging">
                     <TableSwitchRow
                         label="Keep deleted messages"

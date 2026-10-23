@@ -1,4 +1,5 @@
 import { getCorePlugins } from "@core/plugins";
+import { settings } from "@lib/api/settings";
 import { readFile, removeFile, writeFile } from "@lib/api/native/fs";
 import { awaitStorage, createStorage, getPreloadedStorage, preloadStorageIfExists, purgeStorage, updateStorage } from "@lib/api/storage";
 import { safeFetch } from "@lib/utils";
@@ -389,9 +390,12 @@ export async function updatePlugins() {
 export async function initPlugins() {
     await awaitStorage(pluginRepositories, pluginSettings);
 
+    // Safe Mode: only Deltacord's own built-in plugins run, so a broken plugin can't crash it too.
+    const safeMode = settings.safeMode?.enabled === true;
+
     // Now, start all enabled plugins...
     await Promise.allSettled([...registeredPlugins.keys()].map(async id => {
-        if (isPluginEnabled(id)) {
+        if (isPluginEnabled(id) && (!safeMode || isCorePlugin(id))) {
             await startPlugin(id);
         }
     }));

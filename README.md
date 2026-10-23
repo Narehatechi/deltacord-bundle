@@ -38,13 +38,24 @@
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/Narehatechi/deltacord-bundle/release.yml)
 [![3-Clause BSD License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
-A client modification for Discord Android, continuation of [Bunny](https://github.com/pyoncord/Bunny).
+A client modification for Discord Android, forked from [Revenge](https://github.com/revenge-mod) (a continuation of [Bunny](https://github.com/pyoncord/Bunny)), with an Undertale/Deltarune heart.
 
 ## 💪 Features
 
 - **🔌 Plugins**: Extend Discord with custom features
 - **🎨 Themes & Fonts**: Customize Discord's appearance to your liking
 - **🧪 Experiments**: Try out Discord's new features before they're rolled out
+
+### What Deltacord adds
+
+- **Built-in themes**: Deltarune (on by default), Light World and Crimson. Generated on your phone against every colour your Discord version has, so nothing is left Discord-grey, with original pixel-art backdrops.
+- **Message logger**: deleted messages stay in red, edits keep their history, and both survive restarts. A searchable **Deleted messages** browser lists everything it caught.
+- **Tweaks**: no tracking, hide the gift & apps buttons, hide that you're typing, full timestamps, show hidden channels. Each has its own switch.
+- **Backup & restore**: plugins, their settings, themes, fonts and logs in one file; automatic local backups every few days.
+- **Crash recovery**: the crash screen names the plugin that crashed and turns it off in one tap; two quick crashes in a row start Deltacord in Safe Mode so you're never locked out.
+- **Doctor**: checks versions, updates, theme, plugins and backups, and copies a report.
+- **Extras**: optional 8-bit text blips and ★ Saved toasts (original sounds).
+- **Keeps up with Revenge**: a daily job brings in Revenge's fixes, renamed for Deltacord, as a pull request.
 
 ## ⬇️ Download
 

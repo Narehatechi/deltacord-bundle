@@ -1,0 +1,77 @@
+/**
+ * Deltacord's own startup work, around Bunny's:
+ * - initDeltacordEarly(): first thing (crash-loop guard, extras),
+ * - initDeltacordLate(): once plugins are up (crash notice, automatic backup).
+ */
+import { openAlert } from "@lib/ui/alerts";
+import { AlertActionButton, AlertActions, AlertModal } from "@metro/common/components";
+import { BundleUpdaterManager } from "@lib/api/native/modules";
+import { settings } from "@lib/api/settings";
+
+import { autoBackupIfDue } from "./backup";
+import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
+import { initExtras } from "./extras";
+
+export async function initDeltacordEarly() {
+    try {
+        await initCrashGuard();
+    } catch (e) {
+        console.error("[Deltacord] Crash guard failed to start", e);
+    }
+    try {
+        return initExtras();
+    } catch (e) {
+        console.error("[Deltacord] Extras failed to start", e);
+    }
+}
+
+function leaveSafeMode() {
+    settings.safeMode = { ...settings.safeMode, enabled: false };
+    setTimeout(() => BundleUpdaterManager.reload(), 400);
+}
+
+async function showCrashNotice() {
+    const notice = await takeCrashNotice();
+    if (!notice) return;
+    const suspect = notice.lastCrash?.suspect;
+
+    if (notice.autoSafeMode) {
+        openAlert(
+            "deltacord-auto-safe-mode",
+            <AlertModal
+                title="Started in Safe Mode"
+                content={`Deltacord closed twice right after opening, so plugins and your theme are switched off for now.${suspect ? `\n\nIt looks like the plugin "${suspect.name}" caused it.` : ""}`}
+                actions={<AlertActions>
+                    {suspect && <AlertActionButton
+                        text={`Turn off "${suspect.name}" and restart`}
+                        variant="primary"
+                        onPress={() => {
+                            disableSuspect(suspect);
+                            leaveSafeMode();
+                        }}
+                    />}
+                    <AlertActionButton text="Restart normally" variant="secondary" onPress={leaveSafeMode} />
+                    <AlertActionButton text="Stay in Safe Mode" variant="secondary" />
+                </AlertActions>}
+            />
+        );
+    } else if (suspect) {
+        openAlert(
+            "deltacord-crash-suspect",
+            <AlertModal
+                title="Discord closed unexpectedly"
+                content={`Last time, the plugin "${suspect.name}" crashed it. Turn that plugin off?`}
+                actions={<AlertActions>
+                    <AlertActionButton text="Turn it off" variant="destructive" onPress={() => disableSuspect(suspect)} />
+                    <AlertActionButton text="Keep it" variant="secondary" />
+                </AlertActions>}
+            />
+        );
+    }
+}
+
+export function initDeltacordLate() {
+    showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
+    // A quiet safety net, well after startup so it never slows Discord down.
+    setTimeout(() => void autoBackupIfDue(), 90_000);
+}

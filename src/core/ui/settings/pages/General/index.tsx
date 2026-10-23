@@ -1,6 +1,11 @@
 import { isSafeMode, toggleSafeMode } from "@core/debug/safeMode";
 import { Strings } from "@core/i18n";
 import { PyoncordIcon } from "@core/ui/settings";
+import BackupPage from "@core/deltacord/BackupPage";
+import DoctorPage from "@core/deltacord/DoctorPage";
+import ExtrasPage from "@core/deltacord/ExtrasPage";
+import LogBrowser from "@core/plugins/messagelogger/browser";
+import { TweaksSettings } from "@core/plugins/tweaks";
 import About from "@core/ui/settings/pages/General/About";
 import { useProxy } from "@core/vendetta/storage";
 import { findAssetId } from "@lib/api/assets";
@@ -42,6 +47,24 @@ export default function General() {
                             render: () => <About />,
                         })}
                     />
+                </TableRowGroup>
+                <TableRowGroup title="Deltacord">
+                    {([
+                        ["Deleted messages", "Everything the message logger kept, searchable.", "TrashIcon", "Deleted messages", () => <LogBrowser />],
+                        ["Tweaks", "No tracking, hide gift buttons, silent typing and more.", "SettingsIcon", "Tweaks", () => <TweaksSettings />],
+                        ["Extras", "Text blips and ★ Saved toasts.", "StarIcon", "Extras", () => <ExtrasPage />],
+                        ["Backup & restore", "Save or move your plugins, themes and settings.", "DownloadIcon", "Backup & restore", () => <BackupPage />],
+                        ["Doctor", "Check that everything's working and copy a report.", "WrenchIcon", "Doctor", () => <DoctorPage />],
+                    ] as const).map(([label, subLabel, iconName, title, render]) => (
+                        <TableRow
+                            key={label}
+                            arrow
+                            label={label}
+                            subLabel={subLabel}
+                            icon={findAssetId(iconName) ? <TableRow.Icon source={findAssetId(iconName)!} /> : undefined}
+                            onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", { title, render })}
+                        />
+                    ))}
                 </TableRowGroup>
                 <TableRowGroup title={Strings.LINKS}>
                     <TableRow

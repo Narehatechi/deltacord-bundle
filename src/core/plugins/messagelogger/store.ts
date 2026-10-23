@@ -57,6 +57,10 @@ export interface Log {
     edits: Edit[];
     /** Last time this log changed, used for pruning. */
     touched: number;
+    /** Who wrote it, for the browser (deleted messages also have it in raw). */
+    author?: { id?: string; name?: string; };
+    /** Latest known text, for edited messages that weren't deleted. */
+    current?: string;
 }
 
 interface LogFile {

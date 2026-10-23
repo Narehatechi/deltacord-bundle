@@ -1,3 +1,4 @@
+import { disableSuspect, findSuspect } from "@core/deltacord/crashguard";
 import { hasStack, isComponentStack } from "@core/ui/reporter/utils/isStack";
 import { getDebugInfo, toggleSafeMode } from "@lib/api/debug";
 import { BundleUpdaterManager } from "@lib/api/native/modules";
@@ -27,13 +28,18 @@ export default function ErrorBoundaryScreen(props: {
 }) {
     const styles = useStyles();
     const debugInfo = getDebugInfo();
+    const suspect = findSuspect(props.error);
 
     return <ErrorBoundary>
         <SafeAreaProvider>
             <SafeAreaView style={styles.container}>
                 <View style={{ gap: 4 }}>
                     <Text variant="display-lg">Uh oh.</Text>
-                    <Text variant="text-md/normal">A crash occurred while rendering a component. This could be caused by a plugin, Deltacord, or Discord itself.</Text>
+                    <Text variant="text-md/normal">
+                        {suspect
+                            ? `This crash came from the plugin "${suspect.name}". Turning it off should fix it.`
+                            : "A crash occurred while rendering a component. This could be caused by a plugin, Deltacord, or Discord itself."}
+                    </Text>
                     <Text variant="text-sm/normal" color="text-muted">{debugInfo.os.name}; {debugInfo.discord.build} ({debugInfo.discord.version}); {debugInfo.bunny.version}</Text>
                 </View>
                 <ScrollView fadingEdgeLength={64} contentContainerStyle={{ gap: 12 }}>
@@ -42,6 +48,13 @@ export default function ErrorBoundaryScreen(props: {
                     {isComponentStack(props.error) ? <ErrorComponentStackCard componentStack={props.error.componentStack} /> : null}
                 </ScrollView>
                 <Card style={{ gap: 6 }}>
+                    {suspect && <Button
+                        text={`Turn off "${suspect.name}" and reload`}
+                        onPress={() => {
+                            disableSuspect(suspect);
+                            setTimeout(() => BundleUpdaterManager.reload(), 400);
+                        }}
+                    />}
                     <Button text="Reload Discord" onPress={() => BundleUpdaterManager.reload()} />
                     {!settings.safeMode?.enabled && <Button text="Reload in Safe Mode" onPress={() => toggleSafeMode()} />}
                     <Button variant="destructive" text="Retry Render" onPress={() => props.rerender()} />

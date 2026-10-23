@@ -135,6 +135,8 @@ function onUpdate(payload: any) {
 
     const log = logFor(update.id, update.channel_id, payload.guildId ?? update.guild_id);
     log.edits.push({ content: record.content, at: Date.now() });
+    log.current = update.content;
+    log.author ??= { id: record.author?.id, name: record.author?.globalName ?? record.author?.username };
     if (log.edits.length > MAX_EDITS) log.edits.splice(0, log.edits.length - MAX_EDITS);
     log.touched = Date.now();
     changed.add(update.id);

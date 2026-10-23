@@ -1,6 +1,7 @@
 import patchErrorBoundary from "@core/debug/patches/patchErrorBoundary";
 import initFixes from "@core/fixes";
 import { initFetchI18nStrings } from "@core/i18n";
+import { initDeltacordEarly, initDeltacordLate } from "@core/deltacord/init";
 import { startMessageLoggerEarly } from "@core/plugins/messagelogger";
 import initSettings from "@core/ui/settings";
 import { initVendettaObject } from "@core/vendetta/api";
@@ -20,6 +21,7 @@ import * as lib from "./lib";
 export default async () => {
     // Load everything in parallel
     await Promise.all([
+        initDeltacordEarly(),
         initThemes(),
         injectFluxInterceptor(),
         startMessageLoggerEarly(),
@@ -48,8 +50,8 @@ export default async () => {
         .then(u => lib.unload.push(u))
         .catch(() => alert("Failed to initialize Vendetta plugins"));
 
-    // And then, load Bunny plugins
-    initPlugins();
+    // And then, load Bunny plugins, then Deltacord's after-startup work
+    initPlugins().finally(() => initDeltacordLate());
 
     // Update the fonts
     updateFonts();

@@ -1,3 +1,4 @@
+import { announceSave } from "@core/deltacord/extras";
 import { awaitStorage, createMMKVBackend, createStorage, wrapSync } from "@core/vendetta/storage";
 import { clearFolder, downloadFile, fileExists, removeFile, writeFile } from "@lib/api/native/fs";
 import { safeFetch } from "@lib/utils";
@@ -86,6 +87,7 @@ export async function installFont(url: string, selected = false) {
 }
 
 export async function selectFont(name: string | null) {
+    announceSave(name ? `Font set: ${name}` : "Font reset");
     if (name && !(name in fonts)) throw new Error("Selected font does not exist!");
 
     if (name) {

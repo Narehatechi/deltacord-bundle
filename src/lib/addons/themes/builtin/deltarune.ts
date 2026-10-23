@@ -20,28 +20,92 @@ import { VendettaThemeManifest } from "../colors/types";
 import { _colorRef } from "../colors/updater";
 
 export const DELTARUNE_THEME_ID = "deltacord://builtin/deltarune";
-const BACKGROUND_URL = "https://raw.githubusercontent.com/Narehatechi/deltacord-bundle/main/themes/deltarune/background.png";
+const ASSETS = "https://raw.githubusercontent.com/Narehatechi/deltacord-bundle/main/themes";
 
-export const P = {
-    void: "#000000",
-    bg1: "#05030A",
-    bg2: "#0C0816",
-    bg3: "#151026",
-    bg4: "#211838",
-    bg5: "#2E2250",
-    text: "#FFFFFF",
-    muted: "#B4AEC8",
-    faint: "#7D7694",
-    disabled: "#5A546E",
-    yellow: "#FFFF00",
-    orange: "#FF7F27",
-    red: "#FF2A2A",
-    green: "#22E022",
-    cyan: "#00C8FF",
-    pink: "#FF66CC",
-    purple: "#8A4DFF",
-    teal: "#00E5C8",
-} as const;
+export interface Palette {
+    void: string; bg1: string; bg2: string; bg3: string; bg4: string; bg5: string;
+    text: string; muted: string; faint: string; disabled: string;
+    /** "Selected" colour (the game's yellow). */
+    yellow: string;
+    /** Accent: buttons, brand, progress bars. */
+    orange: string;
+    red: string; green: string; cyan: string; pink: string; purple: string; teal: string;
+}
+
+export interface Variant {
+    id: string;
+    name: string;
+    description: string;
+    palette: Palette;
+    /** Grey ramp indexed by the original colour's lightness (0..1). */
+    ramp: [number, string][];
+    background?: { url: string; alpha: number; };
+}
+
+const BASE_COLOURS = { yellow: "#FFFF00", red: "#FF2A2A", green: "#22E022", pink: "#FF66CC", purple: "#8A4DFF", teal: "#00E5C8" };
+
+export const VARIANTS: Record<string, Variant> = {
+    deltarune: {
+        id: DELTARUNE_THEME_ID,
+        name: "Deltarune",
+        description: "Built into Deltacord. Pitch-black dark world, white boxes, yellow for whatever's selected, orange buttons. Fitted to every colour in your Discord version.",
+        palette: {
+            ...BASE_COLOURS,
+            void: "#000000", bg1: "#05030A", bg2: "#0C0816", bg3: "#151026", bg4: "#211838", bg5: "#2E2250",
+            text: "#FFFFFF", muted: "#B4AEC8", faint: "#7D7694", disabled: "#5A546E",
+            orange: "#FF7F27", cyan: "#00C8FF",
+        },
+        ramp: [
+            [0, "#000000"], [0.06, "#000000"], [0.1, "#020105"], [0.13, "#05030A"], [0.17, "#0C0816"],
+            [0.22, "#151026"], [0.28, "#211838"], [0.36, "#332A4D"], [0.46, "#544C6B"], [0.56, "#7D7694"],
+            [0.66, "#A39DB6"], [0.76, "#C6C1D6"], [0.86, "#E4E1ED"], [0.94, "#F5F4F9"], [1, "#FFFFFF"],
+        ],
+        background: { url: `${ASSETS}/deltarune/background.png`, alpha: 0.32 },
+    },
+    lightworld: {
+        id: "deltacord://builtin/lightworld",
+        name: "Light World",
+        description: "Built into Deltacord. Undertale-style black and white: plain black boxes, white text, yellow for whatever's selected, orange buttons.",
+        palette: {
+            ...BASE_COLOURS, green: "#00E000",
+            void: "#000000", bg1: "#050505", bg2: "#0C0C0C", bg3: "#171717", bg4: "#242424", bg5: "#363636",
+            text: "#FFFFFF", muted: "#BDBDBD", faint: "#848484", disabled: "#5C5C5C",
+            orange: "#FF8A1E", cyan: "#7FD4FF",
+        },
+        ramp: [
+            [0, "#000000"], [0.06, "#000000"], [0.1, "#020202"], [0.13, "#050505"], [0.17, "#0C0C0C"],
+            [0.22, "#171717"], [0.28, "#242424"], [0.36, "#383838"], [0.46, "#5C5C5C"], [0.56, "#848484"],
+            [0.66, "#A8A8A8"], [0.76, "#C9C9C9"], [0.86, "#E6E6E6"], [0.94, "#F6F6F6"], [1, "#FFFFFF"],
+        ],
+        background: { url: `${ASSETS}/lightworld/background.png`, alpha: 0.28 },
+    },
+    crimson: {
+        id: "deltacord://builtin/crimson",
+        name: "Deltarune: Crimson",
+        description: "Built into Deltacord. The dark world in a deep red mood: crimson accents, rose links, yellow for whatever's selected.",
+        palette: {
+            ...BASE_COLOURS, red: "#FF4040",
+            void: "#000000", bg1: "#0A0204", bg2: "#14050A", bg3: "#200912", bg4: "#33101D", bg5: "#4A1729",
+            text: "#FFFFFF", muted: "#D4B0BC", faint: "#9A7380", disabled: "#6A4A55",
+            orange: "#FF3B5C", cyan: "#FF9EC4",
+        },
+        ramp: [
+            [0, "#000000"], [0.06, "#000000"], [0.1, "#050102"], [0.13, "#0A0204"], [0.17, "#14050A"],
+            [0.22, "#200912"], [0.28, "#33101D"], [0.36, "#4D1E2E"], [0.46, "#6E4352"], [0.56, "#9A7380"],
+            [0.66, "#B898A3"], [0.76, "#D4BCC4"], [0.86, "#EADDE1"], [0.94, "#F8F2F4"], [1, "#FFFFFF"],
+        ],
+        background: { url: `${ASSETS}/crimson/background.png`, alpha: 0.3 },
+    },
+};
+
+export const BUILTIN_THEME_IDS = Object.values(VARIANTS).map(v => v.id);
+
+/** The palette being generated right now (set by buildTheme). */
+export let P: Palette = VARIANTS.deltarune.palette;
+let NEUTRAL_RAMP = VARIANTS.deltarune.ramp;
+
+/** "#RRGGBB" + alpha byte, e.g. tint(P.yellow, 0x29). */
+const tint = (color: string, alpha: number) => chroma(color).alpha(alpha / 255).hex();
 
 // ---------------------------------------------------------------- raw colours
 //
@@ -52,13 +116,6 @@ export const P = {
 
 /** Palettes that mean something specific (Nitro, roles, illustrations, partner brands): left alone. */
 const KEEP = /^(CHECKPOINT|PREMIUM|ROLE|GUILD|PLATFORM|HYPESQUAD|APPLICATION|BG_GRADIENT|BG_ANIMATED|ILLO|SPOTIFY|TWITCH|YOUTUBE|XBOX|PLAYSTATION|REDDIT|TWITTER|FACEBOOK|INSTAGRAM|TIKTOK|STEAM|BATTLENET|CRUNCHYROLL|PARTNER|GUILD_BOOSTING|BOOST|NITRO|HOLIDAY|WHITE$|BLACK$|TRANSPARENT$)/;
-
-/** Grey ramp indexed by the original colour's lightness (0..1). */
-const NEUTRAL_RAMP: [number, string][] = [
-    [0, "#000000"], [0.06, "#000000"], [0.1, "#020105"], [0.13, "#05030A"], [0.17, "#0C0816"],
-    [0.22, "#151026"], [0.28, "#211838"], [0.36, "#332A4D"], [0.46, "#544C6B"], [0.56, "#7D7694"],
-    [0.66, "#A39DB6"], [0.76, "#C6C1D6"], [0.86, "#E4E1ED"], [0.94, "#F5F4F9"], [1, "#FFFFFF"],
-];
 
 function neutralFor(lightness: number): string {
     for (let i = 1; i < NEUTRAL_RAMP.length; i++) {
@@ -71,18 +128,20 @@ function neutralFor(lightness: number): string {
     return "#FFFFFF";
 }
 
-/** Deltarune hue and saturation for each colour family. */
-const HUES = {
-    orange: [24, 1],
-    red: [0, 1],
-    green: [120, 0.8],
-    yellow: [60, 1],
-    cyan: [193, 1],
-    pink: [320, 0.95],
-    purple: [262, 0.9],
-    teal: [172, 1],
-} as const;
-type Hue = keyof typeof HUES;
+type Hue = "orange" | "red" | "green" | "yellow" | "cyan" | "pink" | "purple" | "teal";
+/** Hue and saturation for each colour family, taken from the current palette. */
+let HUES = {} as Record<Hue, [number, number]>;
+
+function setHuesFromPalette() {
+    const hs = (c: string): [number, number] => {
+        const [h, sat] = chroma(c).hsl();
+        return [Number.isNaN(h) ? 0 : h, Math.max(0.6, sat)];
+    };
+    HUES = {
+        orange: hs(P.orange), red: hs(P.red), green: hs(P.green), yellow: hs(P.yellow),
+        cyan: hs(P.cyan), pink: hs(P.pink), purple: hs(P.purple), teal: hs(P.teal),
+    };
+}
 
 function familyHue(key: string): Hue | "neutral" | null {
     if (/^(OPACITY_)?(BRAND|BLURPLE)(_|$)/.test(key)) return "orange";
@@ -136,7 +195,8 @@ export function rawColorFor(key: string, original: string | undefined): string |
 // ----------------------------------------------------------- semantic colours
 
 /** Exact keys that deserve a hand-picked colour. Checked before the name-based rules. */
-const EXACT: Record<string, string> = {
+let EXACT: Record<string, string> = {};
+const buildExact = (): Record<string, string> => ({
     TEXT_LINK: P.cyan,
     TEXT_BRAND: P.orange,
     CHANNELS_DEFAULT: P.muted,
@@ -152,18 +212,18 @@ const EXACT: Record<string, string> = {
     STATUS_STREAMING: P.purple,
 
     MENTION_FOREGROUND: P.yellow,
-    MENTION_BACKGROUND: "#FFFF0029",
-    BACKGROUND_MENTIONED: "#FFFF0014",
-    BACKGROUND_MENTIONED_HOVER: "#FFFF001F",
-    BACKGROUND_MESSAGE_HIGHLIGHT: "#FFFF0014",
-    BACKGROUND_MESSAGE_HIGHLIGHT_HOVER: "#FFFF001F",
-    BACKGROUND_MESSAGE_AUTOMOD: "#FF2A2A14",
-    BACKGROUND_MESSAGE_AUTOMOD_HOVER: "#FF2A2A1F",
+    MENTION_BACKGROUND: tint(P.yellow, 0x29),
+    BACKGROUND_MENTIONED: tint(P.yellow, 0x14),
+    BACKGROUND_MENTIONED_HOVER: tint(P.yellow, 0x1F),
+    BACKGROUND_MESSAGE_HIGHLIGHT: tint(P.yellow, 0x14),
+    BACKGROUND_MESSAGE_HIGHLIGHT_HOVER: tint(P.yellow, 0x1F),
+    BACKGROUND_MESSAGE_AUTOMOD: tint(P.red, 0x14),
+    BACKGROUND_MESSAGE_AUTOMOD_HOVER: tint(P.red, 0x1F),
     BACKGROUND_MESSAGE_HOVER: "#FFFFFF0A",
 
     // Discord's main buttons: orange like the game's menu buttons, black text on top.
     REDESIGN_BUTTON_PRIMARY_BACKGROUND: P.orange,
-    REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND: "#D45E0E",
+    REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND: chroma.mix(P.orange, "#000000", 0.2, "rgb").hex(),
     REDESIGN_BUTTON_PRIMARY_TEXT: "#000000",
     REDESIGN_BUTTON_PRIMARY_ALT_BACKGROUND: P.yellow,
     REDESIGN_BUTTON_PRIMARY_ALT_TEXT: "#000000",
@@ -208,7 +268,7 @@ const EXACT: Record<string, string> = {
     MOBILE_SEGMENTED_CONTROL_BACKGROUND: P.bg2,
     TAB_LABEL_TEXT_FOCUSED: P.yellow,
     REACTION_BACKGROUND_DEFAULT: P.bg2,
-    REACTION_BACKGROUND_REACTED_DEFAULT: "#FFFF001A",
+    REACTION_BACKGROUND_REACTED_DEFAULT: tint(P.yellow, 0x1A),
     REACTION_BORDER_REACTED_DEFAULT: P.yellow,
     REACTION_TEXT_REACTED_DEFAULT: P.yellow,
     PROGRESSBAR_INDICATOR_BACKGROUND: P.orange,
@@ -223,7 +283,7 @@ const EXACT: Record<string, string> = {
     ANDROID_NAVIGATION_BAR_BACKGROUND: P.void,
     ANDROID_NAVIGATION_SCRIM_BACKGROUND: "#000000CC",
     DEPRECATED_STORE_BG: P.void,
-};
+});
 
 type Tone = "red" | "green" | "yellow" | "orange" | "cyan" | "purple" | "mention" | "faint" | "spoiler" | null;
 
@@ -277,7 +337,7 @@ export function semanticColorFor(k: string): string | undefined {
 
     switch (tone) {
         case "mention":
-            if (isBg) return PRESSED.test(k) ? "#FFFF0026" : "#FFFF0017";
+            if (isBg) return tint(P.yellow, PRESSED.test(k) ? 0x26 : 0x17);
             return P.yellow;
         case "spoiler":
             return /REVEALED/.test(k) ? P.bg3 : P.bg5;
@@ -364,8 +424,13 @@ function fixContrast(semanticColors: Record<string, string[]>) {
 
 const tokenRef = findByProps("SemanticColor");
 
-/** Builds the theme against the colour keys of the Discord build that is running right now. */
-export function buildDeltaruneTheme(): VendettaThemeManifest {
+/** Builds a variant against the colour keys of the Discord build that is running right now. */
+export function buildTheme(variant: Variant): VendettaThemeManifest {
+    P = variant.palette;
+    NEUTRAL_RAMP = variant.ramp;
+    setHuesFromPalette();
+    EXACT = buildExact();
+
     const rawColors: Record<string, string> = {};
     // Discord's untouched palette, captured before any theme was applied.
     const originalRaw: Record<string, string> = _colorRef.origRaw ?? tokenRef?.RawColor ?? {};
@@ -384,15 +449,20 @@ export function buildDeltaruneTheme(): VendettaThemeManifest {
 
     return {
         spec: 2,
-        name: "Deltarune",
-        description: "Built into Deltacord. Pitch-black dark world, white boxes, yellow for whatever's selected, orange buttons. Fitted to every colour in your Discord version.",
+        name: variant.name,
+        description: variant.description,
         authors: [{ name: "Deltacord", id: "0" }],
         semanticColors,
         rawColors,
-        background: {
-            url: BACKGROUND_URL,
-            blur: 0,
-            alpha: 0.32,
-        },
+        ...(variant.background ? { background: { url: variant.background.url, blur: 0, alpha: variant.background.alpha } } : {}),
     };
+}
+
+export const buildDeltaruneTheme = () => buildTheme(VARIANTS.deltarune);
+
+/** Builds a built-in theme by its deltacord://builtin/ id. */
+export function buildBuiltinTheme(id: string): VendettaThemeManifest {
+    const variant = Object.values(VARIANTS).find(v => v.id === id);
+    if (!variant) throw new Error(`Unknown built-in theme ${id}`);
+    return buildTheme(variant);
 }
