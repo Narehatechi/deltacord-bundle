@@ -18,29 +18,64 @@ async function initializeDeltacord() {
         const stalled = new Promise<"stalled">(resolve => {
             timer = setTimeout(() => resolve("stalled"), STARTUP_LIMIT_MS);
         });
+        const crumbs = require("@core/deltacord/breadcrumbs");
         const startup = (async () => {
+            await crumbs.beginStartup(version);
+            crumbs.stage("reading Discord's modules");
             await require("@metro/internals/caches").initMetroCache();
-            await require(".").default();
+            crumbs.stage("loading Deltacord");
+            const index = require(".");
+            crumbs.stage("setting up");
+            await index.default();
         })();
 
         const result = await Promise.race([startup, stalled]).finally(() => clearTimeout(timer));
         if (result === "stalled") {
+            crumbs.stage("slow; opening Discord anyway");
             console.error(`[Deltacord] Startup took over ${STARTUP_LIMIT_MS / 1000}s; opening Discord anyway`);
             // Still report a real error if it fails later.
             startup.catch(e => console.error("[Deltacord] Startup failed after Discord opened", e));
         }
     } catch (e) {
-        const { ClientInfoManager } = require("@lib/api/native/modules");
-        const stack = e instanceof Error ? e.stack : undefined;
-
-        console.log(stack ?? e?.toString?.() ?? e);
-        alert([
-            "Failed to load Deltacord!\n",
-            `Build Number: ${ClientInfoManager.getConstants().Build}`,
-            `Deltacord: ${version}`,
-            stack || e?.toString?.(),
-        ].join("\n"));
+        // Must never throw: Discord only opens after this function returns.
+        reportStartupError(e);
     }
+}
+
+let startupError: string | undefined;
+
+function reportStartupError(e: any) {
+    try {
+        const stack = e instanceof Error ? e.stack : undefined;
+        const text = String(stack || e?.toString?.() || e);
+        console.log(text);
+
+        let build = "unknown";
+        try {
+            const { NativeClientInfoModule } = require("@lib/api/native/modules");
+            build = NativeClientInfoModule?.getConstants?.()?.Build ?? build;
+        } catch { }
+
+        try {
+            require("@core/deltacord/breadcrumbs").stage(`failed: ${String(e?.message ?? e).slice(0, 300)}`, { quiet: true });
+        } catch { }
+
+        startupError = ["Failed to load Deltacord!\n", `Build Number: ${build}`, `Deltacord: ${version}`, text].join("\n");
+    } catch {
+        startupError = "Failed to load Deltacord!";
+    }
+}
+
+/** Shown once Discord is open, so the message can't get in the way of Discord starting. */
+function showStartupError() {
+    if (!startupError) return;
+    const message = startupError;
+    startupError = undefined;
+    setTimeout(() => {
+        try {
+            alert(message);
+        } catch { }
+    }, 1500);
 }
 
 if (typeof window.__r === "undefined") {
@@ -119,13 +154,29 @@ if (typeof window.__r === "undefined") {
         }
 
         const startDiscord = async () => {
-            await initializeDeltacord();
-            
-            for (const unpatch of unpatches) unpatch();
+            try {
+                await initializeDeltacord();
+            } catch (e) {
+                reportStartupError(e);
+            }
+            try {
+                require("@core/deltacord/breadcrumbs").markOpened();
+            } catch { }
+
+            // Whatever happened above, Discord opens.
+            for (const unpatch of unpatches) {
+                try {
+                    unpatch();
+                } catch { }
+            }
             unpatches.length = 0;
 
-            originalRequire(0);
-            resumeDeferred();
+            try {
+                originalRequire(0);
+            } finally {
+                resumeDeferred();
+                showStartupError();
+            }
         };
 
         startDiscord();
@@ -162,5 +213,5 @@ if (typeof window.__r === "undefined") {
 } else {
     // It is too late to late to hook __r, so we just initialize Deltacord here
     // Likely because of using the legacy loader (from Vendetta)
-    initializeDeltacord();
+    initializeDeltacord().finally(showStartupError);
 }

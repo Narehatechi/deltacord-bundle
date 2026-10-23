@@ -23,6 +23,7 @@ import { ScrollView } from "react-native";
 
 import { listLocalBackups } from "./backup";
 import { failedSteps, slowSteps, stepTimes } from "./startup";
+import { previousStartup } from "./breadcrumbs";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
@@ -148,6 +149,12 @@ async function runChecks(): Promise<Check[]> {
             status: failedSteps.length || slowSteps.length ? "warn" : "ok",
             hint: failedSteps.length || slowSteps.length ? "Send this report if it keeps happening." : undefined,
         });
+
+        const last = previousStartup();
+        if (last && !last.opened) {
+            const stuckAt = last.stages[last.stages.length - 1]?.name ?? "the very start";
+            add({ group: "Deltacord", label: "Last launch", value: `didn't open; stopped at "${stuckAt}"`, status: "warn", hint: "Send this report so it can be fixed." });
+        }
 
         const guard = await getCrashGuardState();
         add({

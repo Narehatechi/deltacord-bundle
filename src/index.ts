@@ -23,18 +23,20 @@ import * as lib from "./lib";
 export default async () => {
     // Load everything in parallel. Discord waits for all of this, so each step has a time limit:
     // one that never finishes is left behind and Discord opens anyway (see core/deltacord/startup).
+    // Plugins start once their update check is done, even if Discord had to open before it was.
+    let pluginUpdates: Promise<unknown> = Promise.resolve();
+
+    const crumbs = require("@core/deltacord/breadcrumbs");
     const step = <T>(name: string, run: () => Promise<T> | T) => {
         let work: Promise<T> | T;
+        crumbs.stage(`start: ${name}`, { quiet: true });
         try {
             work = run();
         } catch (e) {
             work = Promise.reject(e);
         }
-        return guardStep(name, work);
+        return guardStep(name, work).finally(() => crumbs.stage(`done: ${name}`, { quiet: true }));
     };
-
-    // Plugins start once their update check is done, even if Discord had to open before it was.
-    let pluginUpdates: Promise<unknown> = Promise.resolve();
 
     await Promise.all([
         step("Deltacord", initDeltacordEarly),
