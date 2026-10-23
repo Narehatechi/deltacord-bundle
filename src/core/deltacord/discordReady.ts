@@ -2,8 +2,8 @@
  * Notices when Discord's real screen is up, so the startup animation (drawn by the patched app)
  * can stay over Discord's own loading screen until then.
  *
- * Logged in: when the connection to Discord opens. Logged out: shortly after Discord opens, since
- * the login screen needs no connection.
+ * Logged in: when the connection to Discord opens. Logged out: once Discord has loaded the saved
+ * login and says there isn't one (the login screen needs no connection).
  */
 import { FluxDispatcher } from "@metro/common";
 import { findByStoreNameLazy } from "@metro/wrappers";
@@ -35,10 +35,17 @@ export function watchForDiscordReady() {
         }
     }
 
-    // Logged out: Discord goes straight to the login screen.
+    // Logged out: Discord goes to the login screen without connecting. Discord loads the saved
+    // login in the background, so only decide once it's had time to, and only if Discord itself
+    // says it isn't logged in.
     setTimeout(() => {
         try {
-            if (!AuthenticationStore.getToken?.()) done("logged out");
-        } catch { }
-    }, 1500);
+            const authenticated = AuthenticationStore.isAuthenticated?.();
+            const token = AuthenticationStore.getToken?.();
+            if (authenticated === false && !token) done("logged out");
+            else stage(`still connecting (logged in: ${String(authenticated)})`, { quiet: true });
+        } catch (e) {
+            stage(`couldn't check login: ${String((e as Error)?.message ?? e)}`, { quiet: true });
+        }
+    }, 6000);
 }
