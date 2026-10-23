@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.4.0...v1.5.0) (2026-10-23)
+
+
+### Features
+
+* deleted messages browser, backup & restore, tweaks, extra themes, crash recovery and Doctor ([5fbbdc6](https://github.com/Narehatechi/deltacord-bundle/commit/5fbbdc639e33ac998f0ee766a54e6d415fa3c2fa))
+
 # [1.4.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.3.0...v1.4.0) (2026-10-23)
 
 
