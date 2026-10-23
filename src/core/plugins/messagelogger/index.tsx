@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 
 import { announceSave } from "@core/deltacord/extras";
+import { startingInSafeMode } from "@core/deltacord/safeModeGate";
 
 import { defineCorePlugin } from "..";
 import LogBrowser from "./browser";
@@ -38,6 +39,8 @@ function startLogger() {
  */
 export async function startMessageLoggerEarly() {
     try {
+        // Safe Mode leaves Deltacord's own plugins off too.
+        if (await startingInSafeMode()) return;
         await awaitStorage(pluginSettings);
         if (pluginSettings[PLUGIN_ID]?.enabled === false) return;
         startLogger();

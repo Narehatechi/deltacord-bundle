@@ -118,14 +118,28 @@ export async function createStorage<T>(backend: StorageBackend): Promise<Awaited
 
 export function wrapSync<T extends Promise<any>>(store: T): Awaited<T> {
     let awaited: any = undefined;
+    let settled = false;
 
     const awaitQueue: (() => void)[] = [];
-    const awaitInit = (cb: () => void) => (awaited ? cb() : awaitQueue.push(cb));
-
-    store.then(v => {
-        awaited = v;
+    const awaitInit = (cb: () => void) => (settled ? cb() : awaitQueue.push(cb));
+    const flush = () => {
+        settled = true;
         awaitQueue.forEach(cb => cb());
-    });
+        awaitQueue.length = 0;
+    };
+
+    store.then(
+        v => {
+            awaited = v;
+            flush();
+        },
+        // A store that can't load must not leave everything waiting on it forever (that kept
+        // Discord on its logo). It works in memory for this launch instead.
+        e => {
+            console.error("[Storage] A store failed to load; using an empty one for now", e);
+            flush();
+        },
+    );
 
     return new Proxy({} as Awaited<T>, {
         ...Object.fromEntries(
@@ -226,12 +240,21 @@ export const createFileBackend = (file: string, defaultData = {}, migratePromise
                 try {
                     return JSON.parse(content);
                 } catch {
-                    // Corrupted content, ignore
+                    // Corrupted (for example cut off when the app was closed mid-save): keep a copy, start fresh.
+                    console.error(`[Storage] ${file} was damaged; starting it fresh (copy kept as ${file}.damaged)`);
+                    try {
+                        await NativeFileModule.writeFile("documents", filePathFixer(`${file}.damaged`), String(content ?? ""), "utf8");
+                    } catch { }
                 }
             }
 
-            await NativeFileModule.writeFile("documents", filePathFixer(file), JSON.stringify(defaultData), "utf8");
-            return JSON.parse(await NativeFileModule.readFile(path, "utf8"));
+            const fresh = JSON.stringify(defaultData);
+            try {
+                await NativeFileModule.writeFile("documents", filePathFixer(file), fresh, "utf8");
+            } catch (e) {
+                console.error(`[Storage] Couldn't write ${file}`, e);
+            }
+            return JSON.parse(fresh);
         },
         set: async data => {
             await migratePromise;

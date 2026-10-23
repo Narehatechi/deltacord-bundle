@@ -70,11 +70,13 @@ interface LogFile {
 
 export const logs = new Map<string, Log>();
 let loaded = false;
+let loading = false;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
 /** Merges saved logs in; anything logged since startup wins over the saved copy. */
 export async function loadLogs() {
     loaded = false;
+    loading = true;
 
     try {
         if (await fileExists(LOG_FILE)) {
@@ -87,8 +89,13 @@ export async function loadLogs() {
         }
     } catch (e) {
         console.error("[MessageLogger] Couldn't read saved logs, starting fresh", e);
+        // Keep the damaged file so the next save doesn't destroy what might still be recovered.
+        try {
+            await writeFile(`${LOG_FILE}.damaged`, await readFile(LOG_FILE));
+        } catch { }
     }
 
+    loading = false;
     loaded = true;
 }
 
@@ -109,6 +116,11 @@ export function scheduleSave() {
 
 export async function saveNow() {
     saveTimer = undefined;
+    // Saving before the saved logs are read back would overwrite them with only this launch's.
+    if (!loaded) {
+        if (loading) saveTimer = setTimeout(saveNow, 1000);
+        return;
+    }
     prune();
     const file: LogFile = { version: FILE_VERSION, logs: Object.fromEntries(logs) };
     try {

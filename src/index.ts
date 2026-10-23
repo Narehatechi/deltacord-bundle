@@ -1,7 +1,9 @@
 import patchErrorBoundary from "@core/debug/patches/patchErrorBoundary";
 import initFixes from "@core/fixes";
 import { initFetchI18nStrings } from "@core/i18n";
+import { markDiscordStarting } from "@core/deltacord/crashguard";
 import { initDeltacordEarly, initDeltacordLate } from "@core/deltacord/init";
+import { guardStep } from "@core/deltacord/startup";
 import { startMessageLoggerEarly } from "@core/plugins/messagelogger";
 import initSettings from "@core/ui/settings";
 import { initVendettaObject } from "@core/vendetta/api";
@@ -19,25 +21,42 @@ import { patchSettings } from "@ui/settings";
 import * as lib from "./lib";
 
 export default async () => {
-    // Load everything in parallel
+    // Load everything in parallel. Discord waits for all of this, so each step has a time limit:
+    // one that never finishes is left behind and Discord opens anyway (see core/deltacord/startup).
+    const step = <T>(name: string, run: () => Promise<T> | T) => {
+        let work: Promise<T> | T;
+        try {
+            work = run();
+        } catch (e) {
+            work = Promise.reject(e);
+        }
+        return guardStep(name, work);
+    };
+
+    // Plugins start once their update check is done, even if Discord had to open before it was.
+    let pluginUpdates: Promise<unknown> = Promise.resolve();
+
     await Promise.all([
-        initDeltacordEarly(),
-        initThemes(),
-        injectFluxInterceptor(),
-        startMessageLoggerEarly(),
-        patchSettings(),
-        patchCommands(),
-        patchJsx(),
-        initVendettaObject(),
-        initFetchI18nStrings(),
-        initSettings(),
-        initFixes(),
-        patchErrorBoundary(),
-        updatePlugins()
+        step("Deltacord", initDeltacordEarly),
+        step("Themes", initThemes),
+        step("Flux", injectFluxInterceptor),
+        step("Message Logger", startMessageLoggerEarly),
+        step("Settings patches", patchSettings),
+        step("Commands", patchCommands),
+        step("JSX", patchJsx),
+        step("Vendetta API", initVendettaObject),
+        step("Translations", initFetchI18nStrings),
+        step("Settings", initSettings),
+        step("Fixes", initFixes),
+        step("Error screen", patchErrorBoundary),
+        step("Plugin updates", () => (pluginUpdates = updatePlugins())),
     ]).then(
         // Push them all to unloader
-        u => u.forEach(f => f && lib.unload.push(f))
+        u => u.forEach(f => typeof f === "function" && lib.unload.push(f as () => void))
     );
+
+    // Discord opens as soon as this function returns.
+    markDiscordStarting();
 
     // Assign window object
     window.bunny = lib;
@@ -51,7 +70,11 @@ export default async () => {
         .catch(() => alert("Failed to initialize Vendetta plugins"));
 
     // And then, load Bunny plugins, then Deltacord's after-startup work
-    initPlugins().finally(() => initDeltacordLate());
+    pluginUpdates
+        .catch(() => { })
+        .then(() => initPlugins())
+        .catch(e => console.error("[Deltacord] Plugins failed to start", e))
+        .finally(() => initDeltacordLate());
 
     // Update the fonts
     updateFonts();

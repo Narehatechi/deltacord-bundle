@@ -5,13 +5,30 @@ const { instead } = require("spitroast");
 // @ts-ignore - window is defined later in the bundle, so we assign it early
 globalThis.window = globalThis;
 
+// Discord can't open until Deltacord's startup is done. If startup ever stalls, Discord opens
+// anyway after this long instead of sitting on its logo (each step also has its own, shorter limit).
+const STARTUP_LIMIT_MS = 20_000;
+
 async function initializeDeltacord() {
     try {
         // Make 'freeze' and 'seal' do nothing
         Object.freeze = Object.seal = Object;
 
-        await require("@metro/internals/caches").initMetroCache();
-        await require(".").default();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const stalled = new Promise<"stalled">(resolve => {
+            timer = setTimeout(() => resolve("stalled"), STARTUP_LIMIT_MS);
+        });
+        const startup = (async () => {
+            await require("@metro/internals/caches").initMetroCache();
+            await require(".").default();
+        })();
+
+        const result = await Promise.race([startup, stalled]).finally(() => clearTimeout(timer));
+        if (result === "stalled") {
+            console.error(`[Deltacord] Startup took over ${STARTUP_LIMIT_MS / 1000}s; opening Discord anyway`);
+            // Still report a real error if it fails later.
+            startup.catch(e => console.error("[Deltacord] Startup failed after Discord opened", e));
+        }
     } catch (e) {
         const { ClientInfoManager } = require("@lib/api/native/modules");
         const stack = e instanceof Error ? e.stack : undefined;

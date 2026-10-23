@@ -11,6 +11,7 @@ import { settings } from "@lib/api/settings";
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
 import { initExtras } from "./extras";
+import { startingInSafeMode } from "./safeModeGate";
 import { ensureThemeFontAtStartup } from "./themeFont";
 import { getCurrentTheme } from "@lib/addons/themes";
 
@@ -21,6 +22,8 @@ export async function initDeltacordEarly() {
         console.error("[Deltacord] Crash guard failed to start", e);
     }
     try {
+        // Safe Mode: none of the extras either.
+        if (await startingInSafeMode()) return;
         return initExtras();
     } catch (e) {
         console.error("[Deltacord] Extras failed to start", e);
@@ -42,7 +45,7 @@ async function showCrashNotice() {
             "deltacord-auto-safe-mode",
             <AlertModal
                 title="Started in Safe Mode"
-                content={`Deltacord closed twice right after opening, so plugins and your theme are switched off for now.${suspect ? `\n\nIt looks like the plugin "${suspect.name}" caused it.` : ""}`}
+                content={`Deltacord closed or got stuck twice in a row while opening, so plugins and Deltacord's extras are switched off for now.${suspect ? `\n\nIt looks like the plugin "${suspect.name}" caused it.` : ""}`}
                 actions={<AlertActions>
                     {suspect && <AlertActionButton
                         text={`Turn off "${suspect.name}" and restart`}

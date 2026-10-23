@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 
 import { listLocalBackups } from "./backup";
+import { failedSteps, slowSteps, stepTimes } from "./startup";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
@@ -106,11 +107,11 @@ async function runChecks(): Promise<Check[]> {
 
     await safe("Plugins", "Plugins", () => {
         const safeMode = settings.safeMode?.enabled === true;
-        add({ group: "Plugins", label: "Safe Mode", value: safeMode ? "on (plugins and theme are off)" : "off", status: safeMode ? "warn" : "ok", hint: safeMode ? "Turn it off in Deltacord's settings when you're ready." : undefined });
+        add({ group: "Plugins", label: "Safe Mode", value: safeMode ? "on (plugins and Deltacord's extras are off)" : "off", status: safeMode ? "warn" : "ok", hint: safeMode ? "Turn it off in Deltacord's settings when you're ready." : undefined });
 
         const ids = [...registeredPlugins.keys()];
         const enabled = ids.filter(id => pluginSettings[id]?.enabled);
-        const notRunning = enabled.filter(id => !pluginInstances.has(id) && (!safeMode || isCorePlugin(id)));
+        const notRunning = enabled.filter(id => !pluginInstances.has(id) && (!safeMode || (isCorePlugin(id) && !id.startsWith("deltacord."))));
         add({ group: "Plugins", label: "Plugins", value: `${enabled.length} on, ${pluginInstances.size} running`, status: notRunning.length ? "warn" : "ok" });
         for (const id of notRunning) {
             add({ group: "Plugins", label: registeredPlugins.get(id)?.name ?? id, value: "on but not running", status: "warn", hint: "It may have failed to start; try turning it off and on." });
@@ -134,6 +135,18 @@ async function runChecks(): Promise<Check[]> {
             value: newest ? ago(newest.createdAt) : "none yet",
             status: newest ? "ok" : "warn",
             hint: newest ? undefined : "Make one in Backup & restore.",
+        });
+
+        const slowest = Object.entries(stepTimes).sort(([, a], [, b]) => b - a)[0];
+        add({
+            group: "Deltacord",
+            label: "Startup",
+            value: [
+                failedSteps.length && `failed: ${failedSteps.join(", ")}`,
+                slowSteps.length && `slow: ${slowSteps.join(", ")} (Discord opened without waiting)`,
+            ].filter(Boolean).join(" · ") || (slowest ? `ok · slowest step ${slowest[0]} (${(slowest[1] / 1000).toFixed(1)}s)` : "ok"),
+            status: failedSteps.length || slowSteps.length ? "warn" : "ok",
+            hint: failedSteps.length || slowSteps.length ? "Send this report if it keeps happening." : undefined,
         });
 
         const guard = await getCrashGuardState();

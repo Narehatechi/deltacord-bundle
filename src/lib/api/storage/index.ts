@@ -101,21 +101,38 @@ export function createStorageAndCallback<T extends object = {}>(
     };
 
     const backend = createFileBackend<T>(path);
+    const startFresh = async () => {
+        if (nullIfEmpty) {
+            callback(_loadedStorage[path] = null);
+        } else {
+            _loadedStorage[path] = dflt;
+            await backend.set(dflt);
+            callback(dflt);
+        }
+    };
+
     if (_loadedStorage[path]) {
         callback(_loadedStorage[path]);
     } else {
         backend.exists().then(async exists => {
-            if (!exists) {
-                if (nullIfEmpty) {
-                    callback(_loadedStorage[path] = null);
-                } else {
-                    _loadedStorage[path] = dflt;
-                    await backend.set(dflt);
-                    callback(dflt);
-                }
-            } else {
-                callback(_loadedStorage[path] = await backend.get());
+            if (!exists) return startFresh();
+
+            let data: T;
+            try {
+                data = await backend.get();
+            } catch (e) {
+                // Damaged file (for example cut off when the app was closed mid-save). Without this,
+                // everything waiting for this storage would wait forever and Discord would never open.
+                console.error(`[Storage] ${path} was damaged; starting it fresh (copy kept as ${path}.damaged)`, e);
+                try {
+                    await writeFile(`${path}.damaged`, await readFile(path));
+                } catch { }
+                return startFresh();
             }
+            callback(_loadedStorage[path] = data);
+        }).catch(e => {
+            console.error(`[Storage] Couldn't load ${path}; using defaults for now`, e);
+            if (!(path in _loadedStorage)) startFresh().catch(() => { });
         });
     }
 }
@@ -133,8 +150,8 @@ export const createStorage = <T extends object = {}>(
     path: string,
     opts: StorageOptions<T> = {}
 ): T => {
-    const promise = new Promise(r => resolvePromise = r);
     let awaited: any, resolved: boolean, error: any, resolvePromise: (val?: unknown) => void;
+    const promise = new Promise(r => resolvePromise = r);
 
     createStorageAndCallback(path, proxy => {
         awaited = proxy;
@@ -167,9 +184,14 @@ export async function preloadStorageIfExists(path: string): Promise<boolean> {
     if (_loadedStorage[path]) return true;
 
     const backend = createFileBackend(path);
-    if (await backend.exists()) {
-        _loadedStorage[path] = await backend.get();
-        return true;
+    try {
+        if (await backend.exists()) {
+            _loadedStorage[path] = await backend.get();
+            return true;
+        }
+    } catch (e) {
+        // A damaged file is handled (and replaced) when the storage itself is created.
+        console.error(`[Storage] Couldn't preload ${path}`, e);
     }
 
     return false;

@@ -3,9 +3,9 @@
  *
  * - Works out which plugin a crash came from (Bunny plugins run as "bunny-plugin/<id>-<version>",
  *   Vendetta plugins under their URL, and both show up in error stacks).
- * - Crash-loop guard: if Deltacord closes twice in a row within 20 seconds of opening, the next
- *   launch starts in Safe Mode (no plugins, no theme) and says why, so a bad plugin can't lock
- *   you out of Discord.
+ * - Crash-loop guard: if Deltacord closes (or gets stuck on the logo and is closed) twice in a
+ *   row before Discord has been open for 20 seconds, the next launch starts in Safe Mode (no
+ *   plugins, no theme, no Deltacord extras) and says why, so nothing can lock you out of Discord.
  * - Fatal JS errors are remembered so the next launch can offer to turn the culprit off.
  */
 import { awaitStorage } from "@core/vendetta/storage";
@@ -14,6 +14,8 @@ import { disablePlugin, isPluginEnabled, pluginSettings, registeredPlugins, stop
 import { NativeFileModule } from "@lib/api/native/modules";
 import { settings } from "@lib/api/settings";
 import { awaitStorage as awaitNewStorage } from "@lib/api/storage";
+
+import { markGuardDecided } from "./safeModeGate";
 
 const STATE_FILE = "pyoncord/deltacord-crashguard.json";
 const STABLE_AFTER_MS = 20_000;
@@ -102,6 +104,14 @@ let sessionStart = 0;
  * Discord is up), after switching Safe Mode on if the app keeps closing right after opening.
  */
 export async function initCrashGuard() {
+    try {
+        await runCrashGuard();
+    } finally {
+        markGuardDecided();
+    }
+}
+
+async function runCrashGuard() {
     sessionStart = Date.now();
     const state = current = await readState();
     const previous: GuardState = { ...state };
@@ -132,13 +142,21 @@ export async function initCrashGuard() {
         });
     } catch { }
 
-    // Survived long enough: this launch counts as stable.
-    setTimeout(() => {
+    // This launch only counts as stable once Discord has opened and stayed open for a while
+    // (see markDiscordStarting), so getting stuck on the logo counts the same as closing.
+
+    if (state.autoSafeMode || previous.lastCrash) pendingNotice = { ...state, lastCrash: previous.lastCrash };
+}
+
+let stableTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Called when Deltacord lets Discord open. Staying open for a while makes the launch stable. */
+export function markDiscordStarting() {
+    if (stableTimer) return;
+    stableTimer = setTimeout(() => {
         current.unstable = 0;
         writeState(current);
     }, STABLE_AFTER_MS);
-
-    if (state.autoSafeMode || previous.lastCrash) pendingNotice = { ...state, lastCrash: previous.lastCrash };
 }
 
 /** Called once Discord is up: explains an automatic Safe Mode or a crash from last time. */

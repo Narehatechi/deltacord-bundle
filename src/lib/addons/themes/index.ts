@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 
 import { announceSave, isUserTime } from "@core/deltacord/extras";
 import { onThemeChosen } from "@core/deltacord/themeFont";
+import { startingInSafeMode } from "@core/deltacord/safeModeGate";
 import { settings } from "@lib/api/settings";
 
 import initColors from "./colors";
@@ -173,7 +174,10 @@ export async function initThemes() {
         const currentTheme = getThemeFromLoader();
         initColors(currentTheme?.data ?? null);
 
-        await installBuiltinThemes().catch(e => console.error("Failed to install built-in themes", e));
+        // Not in Safe Mode, where themes are off; they're added on the next normal launch.
+        if (!await startingInSafeMode()) {
+            await installBuiltinThemes().catch(e => console.error("Failed to install built-in themes", e));
+        }
         updateThemes().catch(e => console.error("Failed to update themes", e));
     } catch (e) {
         console.error("Failed to initialize themes", e);
