@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.0...v1.9.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* tell the startup animation when Discord is really ready; safer No tracking ([bacb494](https://github.com/Narehatechi/deltacord-bundle/commit/bacb494f7496d8e11137a57967e51fd855c551ad))
+
 # [1.9.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.8.2...v1.9.0) (2026-10-23)
 
 
