@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.3.0...v1.4.0) (2026-10-23)
+
+
+### Features
+
+* built-in Deltarune theme and persistent message logger ([1586c97](https://github.com/Narehatechi/deltacord-bundle/commit/1586c97ab3b28bce229c05f496a2cf3d1567a107))
+
 # [1.3.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.2.0...v1.3.0) (2026-10-22)
 
 
