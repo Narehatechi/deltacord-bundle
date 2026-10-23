@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.8.2...v1.9.0) (2026-10-23)
+
+
+### Features
+
+* switch for the startup animation in Extras ([170acf6](https://github.com/Narehatechi/deltacord-bundle/commit/170acf60ab39ce8cc29fbd79d8320cecf1f28e39))
+
 ## [1.8.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.8.1...v1.8.2) (2026-10-23)
 
 
