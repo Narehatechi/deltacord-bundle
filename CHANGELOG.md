@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.7.1...v1.8.0) (2026-10-23)
+
+
+### Features
+
+* profiles you can save and switch between, with a save sound ([e2ed2e3](https://github.com/Narehatechi/deltacord-bundle/commit/e2ed2e3d836126d98bfc104b88877befb286ad85))
+
 ## [1.7.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.7.0...v1.7.1) (2026-10-23)
 
 
