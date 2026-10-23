@@ -10,8 +10,8 @@
  * their names say they are for (backgrounds, text, borders, danger, mentions and so on).
  *
  * Palette, colours only (no game art): pitch-black "dark world" backgrounds with a faint
- * indigo undertone, white text and box borders, yellow for whatever is selected, orange
- * buttons, cyan links, and the game's bright red / green / yellow status colours.
+ * indigo undertone, white text and box borders, white for whatever is selected, orange
+ * buttons, cyan links, and bright red / green status colours. No yellow anywhere.
  */
 import { findByProps } from "@metro";
 import chroma from "chroma-js";
@@ -25,7 +25,7 @@ const ASSETS = "https://raw.githubusercontent.com/Narehatechi/deltacord-bundle/m
 export interface Palette {
     void: string; bg1: string; bg2: string; bg3: string; bg4: string; bg5: string;
     text: string; muted: string; faint: string; disabled: string;
-    /** "Selected" colour (the game's yellow). */
+    /** "Selected" colour (white; also used where Discord would show yellow). */
     yellow: string;
     /** Accent: buttons, brand, progress bars. */
     orange: string;
@@ -42,13 +42,13 @@ export interface Variant {
     background?: { url: string; alpha: number; };
 }
 
-const BASE_COLOURS = { yellow: "#FFFF00", red: "#FF2A2A", green: "#22E022", pink: "#FF66CC", purple: "#8A4DFF", teal: "#00E5C8" };
+const BASE_COLOURS = { yellow: "#FFFFFF", red: "#FF2A2A", green: "#22E022", pink: "#FF66CC", purple: "#8A4DFF", teal: "#00E5C8" };
 
 export const VARIANTS: Record<string, Variant> = {
     deltarune: {
         id: DELTARUNE_THEME_ID,
         name: "Deltarune",
-        description: "Built into Deltacord. Pitch-black dark world, white boxes, yellow for whatever's selected, orange buttons. Fitted to every colour in your Discord version.",
+        description: "Built into Deltacord. Pitch-black dark world, white boxes, white for whatever's selected, orange buttons. Fitted to every colour in your Discord version.",
         palette: {
             ...BASE_COLOURS,
             void: "#000000", bg1: "#05030A", bg2: "#0C0816", bg3: "#151026", bg4: "#211838", bg5: "#2E2250",
@@ -65,7 +65,7 @@ export const VARIANTS: Record<string, Variant> = {
     lightworld: {
         id: "deltacord://builtin/lightworld",
         name: "Light World",
-        description: "Built into Deltacord. Undertale-style black and white: plain black boxes, white text, yellow for whatever's selected, orange buttons.",
+        description: "Built into Deltacord. Undertale-style black and white: plain black boxes, white text, white for whatever's selected, orange buttons.",
         palette: {
             ...BASE_COLOURS, green: "#00E000",
             void: "#000000", bg1: "#050505", bg2: "#0C0C0C", bg3: "#171717", bg4: "#242424", bg5: "#363636",
@@ -82,7 +82,7 @@ export const VARIANTS: Record<string, Variant> = {
     crimson: {
         id: "deltacord://builtin/crimson",
         name: "Deltarune: Crimson",
-        description: "Built into Deltacord. The dark world in a deep red mood: crimson accents, rose links, yellow for whatever's selected.",
+        description: "Built into Deltacord. The dark world in a deep red mood: crimson accents, rose links, white for whatever's selected.",
         palette: {
             ...BASE_COLOURS, red: "#FF4040",
             void: "#000000", bg1: "#0A0204", bg2: "#14050A", bg3: "#200912", bg4: "#33101D", bg5: "#4A1729",
@@ -130,12 +130,14 @@ function neutralFor(lightness: number): string {
 
 type Hue = "orange" | "red" | "green" | "yellow" | "cyan" | "pink" | "purple" | "teal";
 /** Hue and saturation for each colour family, taken from the current palette. */
-let HUES = {} as Record<Hue, [number, number]>;
+let HUES = {} as Record<Hue, [number, number] | null>;
 
 function setHuesFromPalette() {
-    const hs = (c: string): [number, number] => {
+    // A palette colour with no real hue (white/grey) maps its whole family onto the grey ramp.
+    const hs = (c: string): [number, number] | null => {
         const [h, sat] = chroma(c).hsl();
-        return [Number.isNaN(h) ? 0 : h, Math.max(0.6, sat)];
+        if (Number.isNaN(h) || !(sat > 0.1)) return null;
+        return [h, Math.max(0.6, sat)];
     };
     HUES = {
         orange: hs(P.orange), red: hs(P.red), green: hs(P.green), yellow: hs(P.yellow),
@@ -182,10 +184,10 @@ export function rawColorFor(key: string, original: string | undefined): string |
     const lightness = color.hsl()[2];
 
     let out: chroma.Color;
-    if (hue === "neutral") {
+    if (hue === "neutral" || !HUES[hue]) {
         out = chroma(neutralFor(lightness));
     } else {
-        const [h, sat] = HUES[hue];
+        const [h, sat] = HUES[hue]!;
         // Keep the shade (light/dark step of the scale), swap in the Deltarune hue.
         out = chroma.hsl(h, sat, Math.min(0.97, Math.max(0.04, lightness)));
     }
@@ -377,7 +379,7 @@ export function semanticColorFor(k: string): string | undefined {
 
     if (FOREGROUND.test(k)) {
         if (/DISABLED/.test(k)) return P.disabled;
-        // Like the game's menus: whatever you're on turns yellow.
+        // Whatever you're on is highlighted.
         if (SELECTED.test(k)) return P.yellow;
         if (/(PLACEHOLDER|FAINT)/.test(k)) return P.faint;
         if (/(MUTED|SECONDARY|SUBTLE|TERTIARY|DESCRIPTION|HINT|LOW)/.test(k)) return P.muted;

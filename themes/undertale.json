@@ -1,7 +1,7 @@
 {
   "spec": 2,
   "name": "Undertale",
-  "description": "* Pitch black. White borders. Yellow highlights. Orange buttons.\n* You feel right at home.",
+  "description": "* Pitch black. White borders. White highlights. Orange buttons.\n* You feel right at home.",
   "authors": [
     {
       "name": "Deltacord",
@@ -66,16 +66,16 @@
       "#2A2A2A"
     ],
     "BACKGROUND_MENTIONED": [
-      "#FFFF0018",
-      "#FFFF0018"
+      "#FFFFFF18",
+      "#FFFFFF18"
     ],
     "BACKGROUND_MENTIONED_HOVER": [
-      "#FFFF0026",
-      "#FFFF0026"
+      "#FFFFFF26",
+      "#FFFFFF26"
     ],
     "BACKGROUND_MESSAGE_HIGHLIGHT": [
-      "#FFFF0018",
-      "#FFFF0018"
+      "#FFFFFF18",
+      "#FFFFFF18"
     ],
     "BG_BASE_PRIMARY": [
       "#000000",
@@ -278,20 +278,20 @@
       "#A6A6A6"
     ],
     "TEXT_LINK": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "TEXT_BRAND": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "TEXT_POSITIVE": [
       "#00C000",
       "#00C000"
     ],
     "TEXT_WARNING": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "TEXT_DANGER": [
       "#FF0000",
@@ -306,8 +306,8 @@
       "#00C000"
     ],
     "TEXT_FEEDBACK_WARNING": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "CHANNELS_DEFAULT": [
       "#A6A6A6",
@@ -322,12 +322,12 @@
       "#FFFFFF"
     ],
     "INTERACTIVE_HOVER": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "INTERACTIVE_ACTIVE": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "INTERACTIVE_MUTED": [
       "#6E6E6E",
@@ -358,12 +358,12 @@
       "#A6A6A6"
     ],
     "MENTION_FOREGROUND": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "MENTION_BACKGROUND": [
-      "#FFFF0026",
-      "#FFFF0026"
+      "#FFFFFF26",
+      "#FFFFFF26"
     ],
     "INFO_DANGER_FOREGROUND": [
       "#FF0000",
@@ -378,8 +378,8 @@
       "#00C000"
     ],
     "STATUS_WARNING": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "CONTROL_BRAND_FOREGROUND": [
       "#FF7F27",
@@ -418,8 +418,8 @@
       "#00C000"
     ],
     "STATUS_IDLE": [
-      "#FFFF00",
-      "#FFFF00"
+      "#FFFFFF",
+      "#FFFFFF"
     ],
     "STATUS_DND": [
       "#FF0000",
@@ -502,14 +502,14 @@
     "RED_500": "#FF0000",
     "RED_530": "#FF0000",
     "RED_560": "#FF0000",
-    "YELLOW_300": "#FFFF00",
-    "YELLOW_330": "#FFFF00",
-    "YELLOW_345": "#FFFF00",
-    "YELLOW_360": "#FFFF00",
-    "YELLOW_400": "#FFFF00",
-    "YELLOW_430": "#FFFF00",
-    "YELLOW_460": "#FFFF00",
-    "YELLOW_500": "#FFFF00",
+    "YELLOW_300": "#FFFFFF",
+    "YELLOW_330": "#FFFFFF",
+    "YELLOW_345": "#FFFFFF",
+    "YELLOW_360": "#FFFFFF",
+    "YELLOW_400": "#FFFFFF",
+    "YELLOW_430": "#FFFFFF",
+    "YELLOW_460": "#FFFFFF",
+    "YELLOW_500": "#FFFFFF",
     "GREEN_300": "#00C000",
     "GREEN_330": "#00C000",
     "GREEN_345": "#00C000",
