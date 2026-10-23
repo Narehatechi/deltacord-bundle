@@ -1,3 +1,10 @@
+## [1.9.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.2...v1.9.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* never switch Discord's theme before Discord has started ([3619518](https://github.com/Narehatechi/deltacord-bundle/commit/3619518f34d6cf26372c8fb9286fe5fb84ba913a))
+
 ## [1.9.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.1...v1.9.2) (2026-10-23)
 
 
