@@ -8,6 +8,8 @@
 import { FluxDispatcher } from "@metro/common";
 import { findByStoreNameLazy } from "@metro/wrappers";
 
+import { onDiscordUp } from "@lib/addons/themes";
+
 import { markUiReady, stage } from "./breadcrumbs";
 
 const AuthenticationStore = findByStoreNameLazy("AuthenticationStore");
@@ -17,6 +19,7 @@ export function watchForDiscordReady() {
     const handlers: [string, () => void][] = [];
     const done = (how: string) => {
         markUiReady(how);
+        onDiscordUp();
         for (const [type, handler] of handlers) {
             try {
                 FluxDispatcher.unsubscribe(type, handler);
@@ -34,6 +37,9 @@ export function watchForDiscordReady() {
             stage(`couldn't watch ${type}: ${String((e as Error)?.message ?? e)}`, { quiet: true });
         }
     }
+
+    // Offline or slow: theme switches still happen once Discord has surely started.
+    setTimeout(() => onDiscordUp(), 15_000);
 
     // Logged out: Discord goes to the login screen without connecting. Discord loads the saved
     // login in the background, so only decide once it's had time to, and only if Discord itself

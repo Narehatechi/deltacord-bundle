@@ -92,10 +92,24 @@ export async function leaveMinimalStartup() {
     minimal = false;
 }
 
+/** Written by the patched app when it sees a launch get stuck after Deltacord opened Discord. */
+const STUCK_FLAG = "pyoncord/last-launch-stuck";
+
 async function decideMinimal() {
     const fm = files();
     const path = `${fm.getConstants().DocumentsDirPath}/${MINIMAL_FILE}`;
     try {
+        // The patched app saw the last launch get stuck (even after Deltacord had finished).
+        const flagPath = `${fm.getConstants().DocumentsDirPath}/${STUCK_FLAG}`;
+        if (await fm.fileExists(flagPath)) {
+            try {
+                await fm.removeFile?.("documents", STUCK_FLAG);
+            } catch { }
+            stuckLaunch = previous;
+            minimal = true;
+            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch }), "utf8");
+            return;
+        }
         if (previous && !previous.opened) {
             // The last launch froze: remember it and start minimal from now on.
             stuckLaunch = previous;

@@ -38,6 +38,40 @@ export const themes = wrapSync(createStorage<Record<string, VdThemeInfo>>(create
 /**
  * @internal
  */
+// ------------------------------------------------------------ applying colours safely
+//
+// Switching Discord's theme (AppearanceManager.updateTheme) changes Discord's appearance settings.
+// Doing that before Discord's app has started left Discord stuck on its logo: downloaded themes
+// always arrived late enough, but Deltacord's built-in themes are built instantly on the device.
+// So before Discord is up, colours are only registered (as Discord's own startup does for the
+// saved theme), and the switch happens once Discord is ready.
+
+let discordUp = false;
+let pendingSwitch: (() => void) | null = null;
+
+/** Called once Discord's app is up (see core/deltacord/discordReady). */
+export function onDiscordUp() {
+    if (discordUp) return;
+    discordUp = true;
+    const run = pendingSwitch;
+    pendingSwitch = null;
+    try {
+        run?.();
+    } catch (e) {
+        console.error("[Themes] Couldn't apply the theme", e);
+    }
+}
+
+function applyColors(data: VdThemeInfo["data"] | null) {
+    if (discordUp) {
+        updateBunnyColor(data, { update: true });
+        return;
+    }
+    // Register the colours now; switch Discord over once it's running.
+    if (data) updateBunnyColor(data, { update: false });
+    pendingSwitch = () => updateBunnyColor(data, { update: true });
+}
+
 export async function writeThemeToNative(theme: VdThemeInfo | {}) {
     if (typeof theme !== "object") throw new Error("Theme must be an object");
 
@@ -99,15 +133,20 @@ export async function fetchTheme(url: string, selected = false) {
     // Validate theme
     if (!validateTheme(themeJSON)) throw new Error(`Invalid theme at ${url}`);
 
+    const previous = themes[url]?.data;
+    const data = processData(themeJSON);
     themes[url] = {
         id: url,
         selected: selected,
-        data: processData(themeJSON),
+        data,
     };
 
-    if (selected) {
+    // Unchanged (always true for a built-in theme that was already selected): Discord already
+    // has these colours from startup, so there's nothing to switch.
+    const changed = JSON.stringify(previous) !== JSON.stringify(data);
+    if (selected && changed) {
         writeThemeToNative(themes[url]);
-        updateBunnyColor(themes[url].data, { update: true });
+        applyColors(data);
     }
 }
 
@@ -126,10 +165,10 @@ export function selectTheme(theme: VdThemeInfo | null, write = true) {
     );
 
     if (theme == null && write) {
-        updateBunnyColor(null, { update: true });
+        applyColors(null);
         return writeThemeToNative({});
     } else if (theme) {
-        updateBunnyColor(theme.data, { update: true });
+        applyColors(theme.data);
         return writeThemeToNative(theme);
     }
 }
@@ -169,6 +208,9 @@ export async function initThemes() {
         if (isPyonLoader()) {
             writeFile("../vendetta_theme.json", "null");
         }
+
+        // Minimal startup (after a launch that got stuck): no theme at all this time.
+        if (isMinimalStartup()) return;
 
         await newAwaitStorage(colorsPref);
 
