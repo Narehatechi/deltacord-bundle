@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.6.0...v1.7.0) (2026-10-23)
+
+
+### Features
+
+* no yellow in Deltacord's themes; white instead ([d1a1621](https://github.com/Narehatechi/deltacord-bundle/commit/d1a162102bf51c84f85526e3a12a6d5771ae65ba))
+
 # [1.6.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.5.0...v1.6.0) (2026-10-23)
 
 
