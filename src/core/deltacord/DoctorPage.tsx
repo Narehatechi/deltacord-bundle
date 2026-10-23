@@ -23,7 +23,7 @@ import { ScrollView } from "react-native";
 
 import { listLocalBackups } from "./backup";
 import { failedSteps, slowSteps, stepTimes } from "./startup";
-import { previousStartup } from "./breadcrumbs";
+import { getStuckLaunch, isMinimalStartup, previousStartup, unfinishedSteps } from "./breadcrumbs";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
@@ -150,10 +150,21 @@ async function runChecks(): Promise<Check[]> {
             hint: failedSteps.length || slowSteps.length ? "Send this report if it keeps happening." : undefined,
         });
 
-        const last = previousStartup();
-        if (last && !last.opened) {
-            const stuckAt = last.stages[last.stages.length - 1]?.name ?? "the very start";
-            add({ group: "Deltacord", label: "Last launch", value: `didn't open; stopped at "${stuckAt}"`, status: "warn", hint: "Send this report so it can be fixed." });
+        const stuck = getStuckLaunch() ?? (previousStartup()?.opened === false ? previousStartup() : null);
+        if (isMinimalStartup()) {
+            add({ group: "Deltacord", label: "Startup", value: "minimal (a launch got stuck)", status: "warn", hint: "Deltacord's own additions are off. Try the full startup again from the notice, or Reload in normal mode." });
+        }
+        if (stuck) {
+            const lastStage = stuck.stages[stuck.stages.length - 1]?.name ?? "the very start";
+            const unfinished = unfinishedSteps(stuck);
+            add({
+                group: "Deltacord",
+                label: "Stuck launch",
+                value: `build ${stuck.version}; last step "${lastStage}"${unfinished.length ? `; never finished: ${unfinished.join(", ")}` : ""}`,
+                status: "warn",
+                hint: "Send this report so it can be fixed.",
+            });
+            add({ group: "Deltacord", label: "Stuck launch steps", value: stuck.stages.map(s => `${s.name} @${s.ms}ms`).join(" › "), status: "info" });
         }
 
         const guard = await getCrashGuardState();

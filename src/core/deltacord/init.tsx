@@ -10,7 +10,7 @@ import { settings } from "@lib/api/settings";
 
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
-import { markReady } from "./breadcrumbs";
+import { isMinimalStartup, leaveMinimalStartup, markReady, unfinishedSteps } from "./breadcrumbs";
 import { initExtras } from "./extras";
 import { startingInSafeMode } from "./safeModeGate";
 import { ensureThemeFontAtStartup } from "./themeFont";
@@ -76,8 +76,29 @@ async function showCrashNotice() {
     }
 }
 
+function explainMinimalStartup() {
+    const stuck = unfinishedSteps();
+    openAlert(
+        "deltacord-minimal-startup",
+        <AlertModal
+            title="Started without Deltacord's extras"
+            content={`The last launch got stuck${stuck.length ? ` (it never finished: ${stuck.join(", ")})` : ""}, so Deltacord started without its own additions (theme setup, Message Logger, Tweaks and extras) and Discord could open.\n\nDeltacord > Doctor has the details for a report. You can try the full startup again whenever you like.`}
+            actions={<AlertActions>
+                <AlertActionButton text="Try full startup again" variant="primary" onPress={() => {
+                    void leaveMinimalStartup().then(() => setTimeout(() => BundleUpdaterManager.reload(), 300));
+                }} />
+                <AlertActionButton text="Stay like this for now" variant="secondary" />
+            </AlertActions>}
+        />
+    );
+}
+
 export function initDeltacordLate() {
     markReady();
+    if (isMinimalStartup()) {
+        setTimeout(explainMinimalStartup, 1500);
+        return;
+    }
     showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
     // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
     if (!settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);

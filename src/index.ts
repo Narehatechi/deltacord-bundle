@@ -38,20 +38,34 @@ export default async () => {
         return guardStep(name, work).finally(() => crumbs.stage(`done: ${name}`, { quiet: true }));
     };
 
+    // After a launch that froze, Deltacord's own additions sit this one out (see breadcrumbs).
+    const minimal = crumbs.isMinimalStartup();
+    const skip = () => undefined;
+    // In minimal startup, network steps run in the background instead of holding Discord back.
+    const background = <T>(run: () => Promise<T> | T) => () => {
+        if (!minimal) return run();
+        try {
+            Promise.resolve(run()).catch(e => console.error("[Deltacord] Background step failed", e));
+        } catch (e) {
+            console.error("[Deltacord] Background step failed", e);
+        }
+        return undefined;
+    };
+
     await Promise.all([
-        step("Deltacord", initDeltacordEarly),
+        step("Deltacord", minimal ? skip : initDeltacordEarly),
         step("Themes", initThemes),
         step("Flux", injectFluxInterceptor),
-        step("Message Logger", startMessageLoggerEarly),
+        step("Message Logger", minimal ? skip : startMessageLoggerEarly),
         step("Settings patches", patchSettings),
         step("Commands", patchCommands),
         step("JSX", patchJsx),
         step("Vendetta API", initVendettaObject),
-        step("Translations", initFetchI18nStrings),
+        step("Translations", background(initFetchI18nStrings)),
         step("Settings", initSettings),
         step("Fixes", initFixes),
         step("Error screen", patchErrorBoundary),
-        step("Plugin updates", () => (pluginUpdates = updatePlugins())),
+        step("Plugin updates", background(() => (pluginUpdates = updatePlugins()))),
     ]).then(
         // Push them all to unloader
         u => u.forEach(f => typeof f === "function" && lib.unload.push(f as () => void))

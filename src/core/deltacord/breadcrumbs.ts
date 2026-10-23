@@ -19,6 +19,8 @@ export interface StartupRecord {
     opened: boolean;
     /** Plugins and Deltacord's after-startup work ran. */
     ready: boolean;
+    /** Started without Deltacord's own additions. */
+    minimal?: boolean;
     stages: { name: string; ms: number; }[];
 }
 
@@ -39,7 +41,6 @@ const files = () => nativeModule("NativeFileModule", "RTNFileManager", "DCDFileM
 let record: StartupRecord | undefined;
 let previous: StartupRecord | null = null;
 let showOnScreen = false;
-let writing: Promise<void> = Promise.resolve();
 
 function toast(message: string) {
     if (!showOnScreen) return;
@@ -50,12 +51,64 @@ function toast(message: string) {
 }
 
 function save() {
-    const snapshot = JSON.stringify(record);
-    writing = writing.then(async () => {
-        try {
-            await files()?.writeFile?.("documents", FILE, snapshot, "utf8");
-        } catch { }
-    });
+    // Called straight away (not queued behind a promise), so the stage reaches the file even if
+    // what comes next freezes Discord.
+    try {
+        files()?.writeFile?.("documents", FILE, JSON.stringify(record), "utf8")?.catch?.(() => { });
+    } catch { }
+}
+
+// ---------------------------------------------------------------- minimal startup
+
+const MINIMAL_FILE = "pyoncord/deltacord-minimal.json";
+let minimal = false;
+let stuckLaunch: StartupRecord | null = null;
+
+/**
+ * Minimal startup: after a launch that never got Discord open, Deltacord starts without its own
+ * additions (theme setup, Message Logger, Tweaks, extras) until you choose to try the full startup
+ * again. Discord opens, and the stuck launch is kept so the Doctor page can show where it froze.
+ */
+export const isMinimalStartup = () => minimal;
+export const getStuckLaunch = () => stuckLaunch;
+
+/** Steps the stuck launch started but never finished. */
+export function unfinishedSteps(launch: StartupRecord | null = stuckLaunch): string[] {
+    if (!launch) return [];
+    const started = new Set<string>();
+    for (const { name } of launch.stages) {
+        if (name.startsWith("start: ")) started.add(name.slice(7));
+        else if (name.startsWith("done: ")) started.delete(name.slice(6));
+    }
+    return [...started];
+}
+
+export async function leaveMinimalStartup() {
+    try {
+        await files()?.removeFile?.("documents", MINIMAL_FILE);
+    } catch { }
+    minimal = false;
+}
+
+async function decideMinimal() {
+    const fm = files();
+    const path = `${fm.getConstants().DocumentsDirPath}/${MINIMAL_FILE}`;
+    try {
+        if (previous && !previous.opened) {
+            // The last launch froze: remember it and start minimal from now on.
+            stuckLaunch = previous;
+            minimal = true;
+            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch }), "utf8");
+            return;
+        }
+        if (await fm.fileExists(path)) {
+            minimal = true;
+            stuckLaunch = JSON.parse(await fm.readFile(path, "utf8"))?.stuckLaunch ?? null;
+        }
+    } catch {
+        // Can't tell: keep it simple and start minimal only if the last launch froze.
+        minimal = !!previous && !previous.opened;
+    }
 }
 
 /** First thing at startup. */
@@ -70,7 +123,9 @@ export async function beginStartup(version: string) {
     }
     // Show progress on screen if the last launch never got Discord open (or there's no record yet).
     showOnScreen = !previous?.opened;
-    stage("starting");
+    await decideMinimal();
+    record.minimal = minimal;
+    stage(minimal ? "starting (minimal, the last launch got stuck)" : "starting");
 }
 
 /** Records a stage. `quiet` ones go to the file only, not on screen. */

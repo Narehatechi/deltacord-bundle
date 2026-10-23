@@ -1,3 +1,4 @@
+import { isMinimalStartup } from "@core/deltacord/breadcrumbs";
 import { getCorePlugins } from "@core/plugins";
 import { settings } from "@lib/api/settings";
 import { readFile, removeFile, writeFile } from "@lib/api/native/fs";
@@ -396,7 +397,11 @@ export async function initPlugins() {
     const allowedInSafeMode = (id: string) => isCorePlugin(id) && !id.startsWith("deltacord.");
 
     // Now, start all enabled plugins...
+    // Minimal startup (after a launch that froze): Deltacord's own feature plugins stay off too.
+    const minimal = isMinimalStartup();
+
     await Promise.allSettled([...registeredPlugins.keys()].map(async id => {
+        if (minimal && id.startsWith("deltacord.")) return;
         if (isPluginEnabled(id) && (!safeMode || allowedInSafeMode(id))) {
             await startPlugin(id);
         }
