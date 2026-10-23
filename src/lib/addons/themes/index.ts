@@ -9,6 +9,17 @@ import initColors from "./colors";
 import { applyAndroidAlphaKeys, normalizeToHex } from "./colors/parser";
 import { colorsPref } from "./colors/preferences";
 import { VendettaThemeManifest } from "./colors/types";
+import { buildDeltaruneTheme, DELTARUNE_THEME_ID } from "./builtin/deltarune";
+
+const BUILTIN_PREFIX = "deltacord://builtin/";
+
+/** Remembers which built-in themes were already installed, so a removed one stays removed. */
+const builtinFlags = wrapSync(createStorage<{ installed?: Record<string, boolean>; }>(createMMKVBackend("DELTACORD_BUILTIN_THEMES")));
+
+function getBuiltinTheme(id: string) {
+    if (id === DELTARUNE_THEME_ID) return buildDeltaruneTheme();
+    throw new Error(`Unknown built-in theme ${id}`);
+}
 import { updateBunnyColor } from "./colors/updater";
 
 export interface VdThemeInfo {
@@ -71,7 +82,10 @@ function validateTheme(themeJSON: any): boolean {
 export async function fetchTheme(url: string, selected = false) {
     let themeJSON: any;
 
-    try {
+    if (url.startsWith(BUILTIN_PREFIX)) {
+        // Built-in themes are generated on the device, against this Discord version's colour keys.
+        themeJSON = getBuiltinTheme(url);
+    } else try {
         themeJSON = await (await safeFetch(url, { cache: "no-store" })).json();
     } catch {
         throw new Error(`Failed to fetch theme at ${url}`);
@@ -153,8 +167,32 @@ export async function initThemes() {
         const currentTheme = getThemeFromLoader();
         initColors(currentTheme?.data ?? null);
 
+        await installBuiltinThemes().catch(e => console.error("Failed to install built-in themes", e));
         updateThemes().catch(e => console.error("Failed to update themes", e));
     } catch (e) {
         console.error("Failed to initialize themes", e);
     }
+}
+
+/**
+ * Deltacord comes with the Deltarune theme. On first launch it is installed and switched on;
+ * after that it is kept up to date by updateThemes() like any other theme, and if the user
+ * removes it, it stays removed.
+ */
+async function installBuiltinThemes() {
+    await awaitStorage(themes, builtinFlags);
+    builtinFlags.installed ??= {};
+
+    if (builtinFlags.installed[DELTARUNE_THEME_ID]) return;
+
+    themes[DELTARUNE_THEME_ID] = {
+        id: DELTARUNE_THEME_ID,
+        selected: false,
+        data: processData(buildDeltaruneTheme()),
+    };
+    builtinFlags.installed = { ...builtinFlags.installed, [DELTARUNE_THEME_ID]: true };
+
+    // Switch it on, unless the user picked a theme from somewhere else (Deltacord's own themes are fine to replace).
+    const current = getCurrentTheme();
+    if (!current || current.id.includes("/deltacord-bundle/")) await selectTheme(themes[DELTARUNE_THEME_ID]);
 }

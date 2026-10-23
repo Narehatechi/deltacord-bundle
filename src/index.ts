@@ -1,6 +1,7 @@
 import patchErrorBoundary from "@core/debug/patches/patchErrorBoundary";
 import initFixes from "@core/fixes";
 import { initFetchI18nStrings } from "@core/i18n";
+import { startMessageLoggerEarly } from "@core/plugins/messagelogger";
 import initSettings from "@core/ui/settings";
 import { initVendettaObject } from "@core/vendetta/api";
 import { VdPluginManager } from "@core/vendetta/plugins";
@@ -21,6 +22,7 @@ export default async () => {
     await Promise.all([
         initThemes(),
         injectFluxInterceptor(),
+        startMessageLoggerEarly(),
         patchSettings(),
         patchCommands(),
         patchJsx(),
