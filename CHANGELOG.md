@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.8.1...v1.8.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* after a launch that freezes, start without Deltacord's extras ([b98cc08](https://github.com/Narehatechi/deltacord-bundle/commit/b98cc0885808ff564ddb21c13472a21331eb99c2))
+
 ## [1.8.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.8.0...v1.8.1) (2026-10-23)
 
 
