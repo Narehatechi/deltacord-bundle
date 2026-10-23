@@ -1,3 +1,10 @@
+## [1.9.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.1...v1.9.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* don't mistake a still-loading login for being logged out ([aaf141b](https://github.com/Narehatechi/deltacord-bundle/commit/aaf141be9fb7a5ed7116fbd95dfd4f2fd0d6d08f))
+
 ## [1.9.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.0...v1.9.1) (2026-10-23)
 
 
