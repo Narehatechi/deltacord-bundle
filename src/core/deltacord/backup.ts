@@ -11,6 +11,8 @@ import { BundleUpdaterManager, NativeFileModule } from "@lib/api/native/modules"
 
 export const BACKUP_FORMAT = "deltacord-backup";
 const BACKUP_VERSION = 1;
+import { backupPaths as profileBackupPaths } from "./profiles/storage";
+
 const BACKUP_DIR = "pyoncord/backups";
 const INDEX_FILE = `${BACKUP_DIR}/index.json`;
 const KEEP_LOCAL = 5;
@@ -96,6 +98,10 @@ export async function createBackup({ includeLogs }: { includeLogs: boolean; }): 
         paths.add(storePath(id));
     }
     if (includeLogs) paths.add(LOGS_FILE);
+    // Saved profiles and their avatar images.
+    try {
+        for (const path of await profileBackupPaths()) paths.add(path);
+    } catch { }
 
     const files: Record<string, string> = {};
     for (const path of paths) {

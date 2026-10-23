@@ -1,11 +1,13 @@
 import { useProxy } from "@core/vendetta/storage";
 import { findAssetId } from "@lib/api/assets";
-import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text } from "@metro/common/components";
+import { showToast } from "@lib/ui/toasts";
+import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
+import { useState } from "react";
 import { ScrollView, View } from "react-native";
 
 import { getCurrentTheme } from "@lib/addons/themes";
 
-import { announceSave, ExtrasSettings, extrasSettings, getExtras, previewSound } from "./extras";
+import { announceSave, ExtrasSettings, extrasSettings, getExtras, previewSound, resetSaveSound, setCustomSaveSound } from "./extras";
 import { promptReload, syncThemeFont } from "./themeFont";
 
 const icon = (name: string) => {
@@ -67,12 +69,14 @@ export default function ExtrasPage() {
                     />
                     <TableSwitchRow
                         label="Save chime"
-                        subLabel="Plays a short chime with it."
+                        subLabel="Plays the save sound with it."
                         icon={icon("BellIcon")}
                         value={settings.saveChime}
                         onValueChange={set("saveChime")}
                     />
                 </TableRowGroup>
+
+                <SaveSoundPicker />
 
                 <View style={{ gap: 8 }}>
                     <Text variant="text-sm/semibold" color="text-muted">Preview</Text>
@@ -82,10 +86,63 @@ export default function ExtrasPage() {
                         <Button size="sm" variant="secondary" text="Chime" onPress={() => previewSound("save")} />
                     </Stack>
                     <Text variant="text-xs/medium" color="text-muted">
-                        All sounds are original and made for Deltacord. They play at your notification volume.
+                        Deltacord's own sounds are original. They play at your notification volume.
                     </Text>
                 </View>
             </Stack>
         </ScrollView>
+    );
+}
+
+function SaveSoundPicker() {
+    useProxy(extrasSettings);
+    const { saveSoundUrl } = getExtras();
+    const [link, setLink] = useState(saveSoundUrl ?? "");
+    const [error, setError] = useState("");
+    const [busy, setBusy] = useState(false);
+
+    const use = async () => {
+        setBusy(true);
+        setError("");
+        try {
+            await setCustomSaveSound(link);
+            showToast("★ Save sound set", findAssetId("StarIcon"));
+        } catch (e: any) {
+            setError(e?.message ?? String(e));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <View style={{ gap: 8 }}>
+            <Text variant="text-sm/semibold" color="text-muted">Save sound</Text>
+            <Text variant="text-xs/medium" color="text-muted">
+                {saveSoundUrl
+                    ? "Using your own sound for saves (profile saves, and other saves with Save chime on)."
+                    : "Using Deltacord's chime. To use your own, paste a link to a short WAV, MP3 or OGG file. A Discord attachment link works: send the file to yourself, long-press it and copy the link. It's downloaded once and kept on your phone."}
+            </Text>
+            <TextInput
+                size="md"
+                value={link}
+                placeholder="https://…/sound.wav"
+                isClearable={true}
+                onChange={(v: string) => {
+                    setLink(v);
+                    if (error) setError("");
+                }}
+                returnKeyType="done"
+                onSubmitEditing={use}
+                state={error ? "error" : undefined}
+                errorMessage={error || undefined}
+            />
+            <Stack direction="horizontal" spacing={8}>
+                <Button size="sm" variant="primary" text={busy ? "Downloading…" : "Use this sound"} disabled={busy || !link.trim()} onPress={use} />
+                {saveSoundUrl && <Button size="sm" variant="secondary" text="Back to Deltacord's chime" onPress={() => {
+                    resetSaveSound();
+                    setLink("");
+                }} />}
+            </Stack>
+        </View>
     );
 }

@@ -4,6 +4,7 @@ import { PyoncordIcon } from "@core/ui/settings";
 import BackupPage from "@core/deltacord/BackupPage";
 import DoctorPage from "@core/deltacord/DoctorPage";
 import ExtrasPage from "@core/deltacord/ExtrasPage";
+import ProfilesPage from "@core/deltacord/profiles/ProfilesPage";
 import LogBrowser from "@core/plugins/messagelogger/browser";
 import { TweaksSettings } from "@core/plugins/tweaks";
 import About from "@core/ui/settings/pages/General/About";
@@ -52,7 +53,8 @@ export default function General() {
                     {([
                         ["Deleted messages", "Everything the message logger kept, searchable.", "TrashIcon", "Deleted messages", () => <LogBrowser />],
                         ["Tweaks", "No tracking, hide gift buttons, silent typing and more.", "SettingsIcon", "Tweaks", () => <TweaksSettings />],
-                        ["Extras", "Text blips and ★ Saved toasts.", "StarIcon", "Extras", () => <ExtrasPage />],
+                        ["Profiles", "Save and switch between profiles, everywhere or per server.", "UserIcon", "Profiles", () => <ProfilesPage />],
+                        ["Extras", "Text blips, save sound and ★ Saved toasts.", "StarIcon", "Extras", () => <ExtrasPage />],
                         ["Backup & restore", "Save or move your plugins, themes and settings.", "DownloadIcon", "Backup & restore", () => <BackupPage />],
                         ["Doctor", "Check that everything's working and copy a report.", "WrenchIcon", "Doctor", () => <DoctorPage />],
                     ] as const).map(([label, subLabel, iconName, title, render]) => (
