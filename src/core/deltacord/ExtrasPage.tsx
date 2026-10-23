@@ -2,10 +2,11 @@ import { useProxy } from "@core/vendetta/storage";
 import { findAssetId } from "@lib/api/assets";
 import { showToast } from "@lib/ui/toasts";
 import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 
 import { getCurrentTheme } from "@lib/addons/themes";
+import { NativeFileModule } from "@lib/api/native/modules";
 
 import { announceSave, ExtrasSettings, extrasSettings, getExtras, previewSound, resetSaveSound, setCustomSaveSound } from "./extras";
 import { promptReload, syncThemeFont } from "./themeFont";
@@ -26,6 +27,8 @@ export default function ExtrasPage() {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
+                <StartupAnimationSwitch />
+
                 <TableRowGroup title="Font">
                     <TableSwitchRow
                         label="Determination font with Deltacord's themes"
@@ -144,5 +147,37 @@ function SaveSoundPicker() {
                 }} />}
             </Stack>
         </View>
+    );
+}
+
+/** The startup animation is drawn by the patched app itself, which looks for this file. */
+const ANIMATION_OFF_FILE = "pyoncord/startup-animation-off";
+
+function StartupAnimationSwitch() {
+    const [on, setOn] = useState(true);
+    useEffect(() => {
+        const path = `${NativeFileModule.getConstants().DocumentsDirPath}/${ANIMATION_OFF_FILE}`;
+        NativeFileModule.fileExists(path).then((off: boolean) => setOn(!off)).catch(() => { });
+    }, []);
+
+    return (
+        <TableRowGroup title="Startup">
+            <TableSwitchRow
+                label="Startup animation"
+                subLabel="DEL, TA, CORD instead of Discord's logo while it starts. Changes on the next launch."
+                icon={icon("StarIcon")}
+                value={on}
+                onValueChange={async (value: boolean) => {
+                    setOn(value);
+                    try {
+                        if (value) await NativeFileModule.removeFile?.("documents", ANIMATION_OFF_FILE);
+                        else await NativeFileModule.writeFile("documents", ANIMATION_OFF_FILE, "off", "utf8");
+                        announceSave();
+                    } catch {
+                        setOn(!value);
+                    }
+                }}
+            />
+        </TableRowGroup>
     );
 }
