@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.8.0...v1.8.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* Discord always opens, even when Deltacord fails to start ([12cf371](https://github.com/Narehatechi/deltacord-bundle/commit/12cf371839a04904f13074d4ccaa39509f9cfd48))
+
 # [1.8.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.7.1...v1.8.0) (2026-10-23)
 
 
