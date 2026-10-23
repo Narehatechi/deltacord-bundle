@@ -5,7 +5,9 @@ import { awaitStorage as newAwaitStorage } from "@lib/api/storage";
 import { safeFetch } from "@lib/utils";
 import { Platform } from "react-native";
 
-import { announceSave } from "@core/deltacord/extras";
+import { announceSave, isUserTime } from "@core/deltacord/extras";
+import { onThemeChosen } from "@core/deltacord/themeFont";
+import { settings } from "@lib/api/settings";
 
 import initColors from "./colors";
 import { applyAndroidAlphaKeys, normalizeToHex } from "./colors/parser";
@@ -114,6 +116,8 @@ export async function installTheme(url: string) {
 
 export function selectTheme(theme: VdThemeInfo | null, write = true) {
     announceSave(theme ? `Theme set: ${theme.data?.name ?? "theme"}` : "Theme turned off");
+    // Deltacord's themes bring the Determination font; only for the user's own choices, not startup or Safe Mode.
+    if (isUserTime() && !settings.safeMode?.enabled) onThemeChosen(theme?.id ?? null);
     if (theme) theme.selected = true;
     Object.keys(themes).forEach(
         k => themes[k].selected = themes[k].id === theme?.id

@@ -17,9 +17,15 @@ export interface ExtrasSettings {
     lowBlips: boolean;
     saveToasts: boolean;
     saveChime: boolean;
+    /** Deltacord's themes switch the font to Determination. */
+    themeFont: boolean;
+    // Bookkeeping for the theme font (not shown as switches).
+    fontBeforeTheme?: string | null;
+    fontSetByTheme?: boolean;
+    themeFontPrompted?: boolean;
 }
 
-export const DEFAULT_EXTRAS: ExtrasSettings = { textBlips: false, lowBlips: false, saveToasts: true, saveChime: false };
+export const DEFAULT_EXTRAS: ExtrasSettings = { textBlips: false, lowBlips: false, saveToasts: true, saveChime: false, themeFont: true };
 
 export const extrasSettings = wrapSync(createStorage<Partial<ExtrasSettings>>(createMMKVBackend("DELTACORD_EXTRAS")));
 export const getExtras = (): ExtrasSettings => ({ ...DEFAULT_EXTRAS, ...(extrasSettings ?? {}) } as ExtrasSettings);
@@ -79,6 +85,9 @@ function onMessage(payload: any) {
 // ---------------------------------------------------------------- save toast
 
 let ready = false;
+
+/** True once startup is over, so changes can be treated as the user's own. */
+export const isUserTime = () => ready;
 
 /** "★ Saved" after a change the user made (quiet during startup, when Deltacord itself saves things). */
 export function announceSave(what = "Saved") {

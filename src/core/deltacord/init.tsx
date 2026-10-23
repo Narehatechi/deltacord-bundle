@@ -11,6 +11,8 @@ import { settings } from "@lib/api/settings";
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
 import { initExtras } from "./extras";
+import { ensureThemeFontAtStartup } from "./themeFont";
+import { getCurrentTheme } from "@lib/addons/themes";
 
 export async function initDeltacordEarly() {
     try {
@@ -72,6 +74,8 @@ async function showCrashNotice() {
 
 export function initDeltacordLate() {
     showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
+    // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
+    if (!settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);
     // A quiet safety net, well after startup so it never slows Discord down.
     setTimeout(() => void autoBackupIfDue(), 90_000);
 }

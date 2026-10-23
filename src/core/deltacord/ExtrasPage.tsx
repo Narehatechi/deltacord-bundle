@@ -3,7 +3,10 @@ import { findAssetId } from "@lib/api/assets";
 import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text } from "@metro/common/components";
 import { ScrollView, View } from "react-native";
 
+import { getCurrentTheme } from "@lib/addons/themes";
+
 import { announceSave, ExtrasSettings, extrasSettings, getExtras, previewSound } from "./extras";
+import { promptReload, syncThemeFont } from "./themeFont";
 
 const icon = (name: string) => {
     const id = findAssetId(name);
@@ -21,6 +24,22 @@ export default function ExtrasPage() {
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
+                <TableRowGroup title="Font">
+                    <TableSwitchRow
+                        label="Determination font with Deltacord's themes"
+                        subLabel="Deltarune, Light World and Crimson switch Discord's font to Determination. Other themes keep yours."
+                        icon={icon("TextIcon") ?? icon("StarIcon")}
+                        value={settings.themeFont}
+                        onValueChange={async (v: boolean) => {
+                            extrasSettings.themeFont = v;
+                            announceSave();
+                            try {
+                                if (await syncThemeFont(getCurrentTheme()?.id, { quiet: true })) promptReload();
+                            } catch { }
+                        }}
+                    />
+                </TableRowGroup>
+
                 <TableRowGroup title="Text blips">
                     <TableSwitchRow
                         label="Blip on new messages"

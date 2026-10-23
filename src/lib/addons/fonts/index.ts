@@ -86,8 +86,8 @@ export async function installFont(url: string, selected = false) {
     if (selected) await selectFont(font.name);
 }
 
-export async function selectFont(name: string | null) {
-    announceSave(name ? `Font set: ${name}` : "Font reset");
+export async function selectFont(name: string | null, quiet = false) {
+    if (!quiet) announceSave(name ? `Font set: ${name}` : "Font reset");
     if (name && !(name in fonts)) throw new Error("Selected font does not exist!");
 
     if (name) {

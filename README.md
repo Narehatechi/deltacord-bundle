@@ -48,7 +48,7 @@ A client modification for Discord Android, forked from [Revenge](https://github.
 
 ### What Deltacord adds
 
-- **Built-in themes**: Deltarune (on by default), Light World and Crimson. Generated on your phone against every colour your Discord version has, so nothing is left Discord-grey, with original pixel-art backdrops.
+- **Built-in themes**: Deltarune (on by default), Light World and Crimson, which come with the Determination font. Generated on your phone against every colour your Discord version has, so nothing is left Discord-grey, with original pixel-art backdrops.
 - **Message logger**: deleted messages stay in red, edits keep their history, and both survive restarts. A searchable **Deleted messages** browser lists everything it caught.
 - **Tweaks**: no tracking, hide the gift & apps buttons, hide that you're typing, full timestamps, show hidden channels. Each has its own switch.
 - **Backup & restore**: plugins, their settings, themes, fonts and logs in one file; automatic local backups every few days.
