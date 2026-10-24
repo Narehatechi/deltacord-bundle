@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.15.0...v1.15.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* Message Logger actually marks deleted and edited messages ([01d6f05](https://github.com/Narehatechi/deltacord-bundle/commit/01d6f052ab4afa0c8b2f4089043a333a57a99769))
+
 # [1.15.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.14.0...v1.15.0) (2026-10-24)
 
 
