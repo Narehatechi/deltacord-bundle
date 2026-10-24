@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.12.0...v1.12.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* storage could not save an empty (null) value ([2263bac](https://github.com/Narehatechi/deltacord-bundle/commit/2263bac7455a0957177d53bed1e95c869bdf5b9b))
+
 # [1.12.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.3...v1.12.0) (2026-10-24)
 
 
