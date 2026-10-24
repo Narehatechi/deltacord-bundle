@@ -10,7 +10,14 @@ export const getCorePlugins = (): Record<string, CorePlugin> => ({
     "bunny.quickinstall": require("./quickinstall"),
     "bunny.badges": require("./badges"),
     "deltacord.messagelogger": require("./messagelogger"),
-    "deltacord.tweaks": require("./tweaks")
+    "deltacord.tweaks": require("./tweaks"),
+    "deltacord.hiddenchannels": require("./hiddenchannels"),
+    "deltacord.cleanlinks": require("./cleanlinks"),
+    "deltacord.betterembeds": require("./betterembeds"),
+    "deltacord.noreplyping": require("./noreplyping"),
+    "deltacord.hideblocked": require("./hideblocked"),
+    "deltacord.alwaystrust": require("./alwaystrust"),
+    "deltacord.freeemojis": require("./freeemojis"),
 });
 
 /**

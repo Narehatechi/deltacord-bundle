@@ -8,9 +8,10 @@ import { UnifiedPluginModel } from ".";
 export default function unifyBunnyPlugin(manifest: BunnyPluginManifest): UnifiedPluginModel {
     return {
         id: manifest.id,
-        name: manifest.display.name,
-        description: manifest.display.description,
-        authors: manifest.display.authors,
+        // Deltacord's built-in plugins keep these at the top level instead of under `display`.
+        name: manifest.display?.name ?? (manifest as any).name ?? manifest.id,
+        description: manifest.display?.description ?? (manifest as any).description,
+        authors: manifest.display?.authors ?? (manifest as any).authors,
 
         getBadges() {
             return [

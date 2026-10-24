@@ -7,10 +7,8 @@ import { awaitStorage, createMMKVBackend, createStorage, useProxy, wrapSync } fr
 import { intercept } from "@lib/api/flux";
 import { after, instead } from "@lib/api/patcher";
 import { findAssetId } from "@lib/api/assets";
-import { openAlert } from "@lib/ui/alerts";
-import { constants } from "@metro/common";
-import { AlertActionButton, AlertActions, AlertModal, Stack, TableRow, TableRowGroup, TableSwitchRow, Text } from "@metro/common/components";
-import { findByName, findByProps, findByStoreNameLazy } from "@metro/wrappers";
+import { Stack, TableRow, TableRowGroup, TableSwitchRow, Text } from "@metro/common/components";
+import { findByName, findByProps } from "@metro/wrappers";
 import { ScrollView } from "react-native";
 
 import { announceSave } from "@core/deltacord/extras";
@@ -120,66 +118,7 @@ const fullTimestamps: Tweak = {
     },
 };
 
-const showHiddenChannels: Tweak = {
-    id: "showHiddenChannels",
-    name: "Show hidden channels",
-    description: "Lists channels you don't have access to. Tapping one shows its name and topic (you still can't read it).",
-    icon: "EyeIcon",
-    enabledByDefault: false,
-    start() {
-        const Permissions = findByProps("getChannelPermissions", "can");
-        const ChannelStore = findByStoreNameLazy("ChannelStore");
-        const ChannelTypes = findByProps("ChannelTypes")?.ChannelTypes ?? {};
-        const VIEW = constants?.Permissions?.VIEW_CHANNEL;
-        if (!Permissions?.can || VIEW == null) return noop;
-
-        const skipTypes = [ChannelTypes.DM, ChannelTypes.GROUP_DM, ChannelTypes.GUILD_CATEGORY].filter(t => t != null);
-        const REAL = Symbol.for("deltacord.realPermissionCheck");
-
-        const isHidden = (channel: any) => {
-            if (!channel || skipTypes.includes(channel.type)) return false;
-            channel[REAL] = true;
-            try {
-                return !Permissions.can(VIEW, channel);
-            } finally {
-                delete channel[REAL];
-            }
-        };
-
-        const undo: Array<() => unknown> = [
-            after("can", Permissions, ([perm, channel]: any[], res: any) => (perm === VIEW && channel && !channel[REAL] ? true : res)),
-        ];
-
-        // Opening a hidden channel would just fail to load; show what we know about it instead.
-        const router = findByProps("transitionToGuild");
-        if (router) {
-            for (const key of Object.keys(router)) {
-                if (typeof router[key] !== "function") continue;
-                undo.push(instead(key, router, (args: any[], orig: Function) => {
-                    try {
-                        const id = typeof args[0] === "string" ? args[0].match(/(\d+)$/)?.[1] : undefined;
-                        const channel = id ? ChannelStore.getChannel?.(id) : undefined;
-                        if (channel && isHidden(channel)) {
-                            openAlert(
-                                "deltacord-hidden-channel",
-                                <AlertModal
-                                    title={`#${channel.name}`}
-                                    content={`This channel is hidden from you, so its messages can't be read.${channel.topic ? `\n\nTopic: ${channel.topic}` : ""}`}
-                                    actions={<AlertActions><AlertActionButton text="OK" variant="primary" /></AlertActions>}
-                                />
-                            );
-                            return {};
-                        }
-                    } catch { }
-                    return orig(...args);
-                }));
-            }
-        }
-        return all(...undo);
-    },
-};
-
-export const TWEAKS: Tweak[] = [noTracking, hideChatButtons, silentTyping, fullTimestamps, showHiddenChannels];
+export const TWEAKS: Tweak[] = [noTracking, hideChatButtons, silentTyping, fullTimestamps];
 
 // ---------------------------------------------------------------- runtime
 
@@ -245,7 +184,7 @@ export default defineCorePlugin({
         id: "deltacord.tweaks",
         name: "Deltacord Tweaks",
         version: "1.0.0",
-        description: "Everyday fixes with their own switches: no tracking, hide gift buttons, silent typing, full timestamps, hidden channels.",
+        description: "Everyday fixes with their own switches: no tracking, hide gift buttons, silent typing, full timestamps.",
         authors: [{ name: "Deltacord" }],
     },
     async start() {
