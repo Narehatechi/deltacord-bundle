@@ -41,7 +41,8 @@ export function createProxy(target: any = {}): { proxy: any; emitter: Emitter; }
             },
 
             set(target, prop: string, value) {
-                if (typeof value === "object") {
+                // (null is an "object" too, but can't be wrapped.)
+                if (typeof value === "object" && value !== null) {
                     if (childrens.has(value)) {
                         target[prop] = childrens.get(value);
                     } else {
@@ -63,7 +64,7 @@ export function createProxy(target: any = {}): { proxy: any; emitter: Emitter; }
             },
 
             deleteProperty(target, prop: string) {
-                const value = typeof target[prop] === "object" ? childrens.get(target[prop])! : target[prop];
+                const value = typeof target[prop] === "object" && target[prop] !== null ? childrens.get(target[prop])! : target[prop];
                 const success = delete target[prop];
                 if (success)
                     emitter.emit("DEL", {
