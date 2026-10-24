@@ -1,3 +1,10 @@
+## [1.11.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.2...v1.11.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* show Deltacord's built-in plugins on the Plugins page ([40e52bb](https://github.com/Narehatechi/deltacord-bundle/commit/40e52bb1d54ee38bc7c1a958f23cc41f15f2e0fd))
+
 ## [1.11.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.1...v1.11.2) (2026-10-24)
 
 
