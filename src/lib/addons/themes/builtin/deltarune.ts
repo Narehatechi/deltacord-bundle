@@ -28,6 +28,8 @@ export interface Palette {
     /** "Selected" colour (white; also used where Discord would show yellow). */
     yellow: string;
     /** Accent: buttons, brand, progress bars. */
+    accent: string;
+    /** Things that are really orange in Discord (warnings, orange roles' palette). */
     orange: string;
     red: string; green: string; cyan: string; pink: string; purple: string; teal: string;
 }
@@ -48,12 +50,12 @@ export const VARIANTS: Record<string, Variant> = {
     deltarune: {
         id: DELTARUNE_THEME_ID,
         name: "Deltarune",
-        description: "Built into Deltacord. Pitch-black dark world, white boxes, white for whatever's selected, orange buttons. Fitted to every colour in your Discord version.",
+        description: "Built into Deltacord. Pitch-black dark world, white boxes, white for whatever's selected, white buttons. Fitted to every colour in your Discord version.",
         palette: {
             ...BASE_COLOURS,
             void: "#000000", bg1: "#05030A", bg2: "#0C0816", bg3: "#151026", bg4: "#211838", bg5: "#2E2250",
             text: "#FFFFFF", muted: "#B4AEC8", faint: "#7D7694", disabled: "#5A546E",
-            orange: "#FF7F27", cyan: "#00C8FF",
+            accent: "#FFFFFF", orange: "#FF7F27", cyan: "#00C8FF",
         },
         ramp: [
             [0, "#000000"], [0.06, "#000000"], [0.1, "#020105"], [0.13, "#05030A"], [0.17, "#0C0816"],
@@ -65,12 +67,12 @@ export const VARIANTS: Record<string, Variant> = {
     lightworld: {
         id: "deltacord://builtin/lightworld",
         name: "Light World",
-        description: "Built into Deltacord. Undertale-style black and white: plain black boxes, white text, white for whatever's selected, orange buttons.",
+        description: "Built into Deltacord. Undertale-style black and white: plain black boxes, white text, white for whatever's selected, white buttons.",
         palette: {
             ...BASE_COLOURS, green: "#00E000",
             void: "#000000", bg1: "#050505", bg2: "#0C0C0C", bg3: "#171717", bg4: "#242424", bg5: "#363636",
             text: "#FFFFFF", muted: "#BDBDBD", faint: "#848484", disabled: "#5C5C5C",
-            orange: "#FF8A1E", cyan: "#7FD4FF",
+            accent: "#FFFFFF", orange: "#FF8A1E", cyan: "#7FD4FF",
         },
         ramp: [
             [0, "#000000"], [0.06, "#000000"], [0.1, "#020202"], [0.13, "#050505"], [0.17, "#0C0C0C"],
@@ -87,7 +89,7 @@ export const VARIANTS: Record<string, Variant> = {
             ...BASE_COLOURS, red: "#FF4040",
             void: "#000000", bg1: "#0A0204", bg2: "#14050A", bg3: "#200912", bg4: "#33101D", bg5: "#4A1729",
             text: "#FFFFFF", muted: "#D4B0BC", faint: "#9A7380", disabled: "#6A4A55",
-            orange: "#FF3B5C", cyan: "#FF9EC4",
+            accent: "#FF3B5C", orange: "#FF3B5C", cyan: "#FF9EC4",
         },
         ramp: [
             [0, "#000000"], [0.06, "#000000"], [0.1, "#050102"], [0.13, "#0A0204"], [0.17, "#14050A"],
@@ -128,7 +130,7 @@ function neutralFor(lightness: number): string {
     return "#FFFFFF";
 }
 
-type Hue = "orange" | "red" | "green" | "yellow" | "cyan" | "pink" | "purple" | "teal";
+type Hue = "accent" | "orange" | "red" | "green" | "yellow" | "cyan" | "pink" | "purple" | "teal";
 /** Hue and saturation for each colour family, taken from the current palette. */
 let HUES = {} as Record<Hue, [number, number] | null>;
 
@@ -140,13 +142,13 @@ function setHuesFromPalette() {
         return [h, Math.max(0.6, sat)];
     };
     HUES = {
-        orange: hs(P.orange), red: hs(P.red), green: hs(P.green), yellow: hs(P.yellow),
+        accent: hs(P.accent), orange: hs(P.orange), red: hs(P.red), green: hs(P.green), yellow: hs(P.yellow),
         cyan: hs(P.cyan), pink: hs(P.pink), purple: hs(P.purple), teal: hs(P.teal),
     };
 }
 
 function familyHue(key: string): Hue | "neutral" | null {
-    if (/^(OPACITY_)?(BRAND|BLURPLE)(_|$)/.test(key)) return "orange";
+    if (/^(OPACITY_)?(BRAND|BLURPLE)(_|$)/.test(key)) return "accent";
     if (/^(OPACITY_)?(PRIMARY|NEUTRAL|PLUM|GREY|GRAY)(_|$)/.test(key)) return "neutral";
     if (/^OPACITY_(WHITE|BLACK)?(_|\d|$)/.test(key)) return "neutral";
     if (/^(OPACITY_)?RED(_|$)/.test(key)) return "red";
@@ -169,7 +171,7 @@ function hueOfColor(color: chroma.Color): Hue | "neutral" {
     if (h < 160) return "green";
     if (h < 185) return "teal";
     if (h < 215) return "cyan";
-    if (h < 275) return "orange"; // Discord's blurple brand range becomes our orange
+    if (h < 275) return "accent"; // Discord's blurple brand range becomes the accent
     if (h < 300) return "purple";
     return "pink";
 }
@@ -184,7 +186,10 @@ export function rawColorFor(key: string, original: string | undefined): string |
     const lightness = color.hsl()[2];
 
     let out: chroma.Color;
-    if (hue === "neutral" || !HUES[hue]) {
+    if (hue === "accent" && !HUES.accent) {
+        // A white accent: the brand scale becomes white, its darker steps light grey.
+        out = chroma(neutralFor(Math.min(1, lightness + 0.4)));
+    } else if (hue === "neutral" || !HUES[hue]) {
         out = chroma(neutralFor(lightness));
     } else {
         const [h, sat] = HUES[hue]!;
@@ -200,7 +205,7 @@ export function rawColorFor(key: string, original: string | undefined): string |
 let EXACT: Record<string, string> = {};
 const buildExact = (): Record<string, string> => ({
     TEXT_LINK: P.cyan,
-    TEXT_BRAND: P.orange,
+    TEXT_BRAND: P.accent,
     CHANNELS_DEFAULT: P.muted,
     CHANNEL_ICON: P.muted,
     CHANNEL_TEXT_AREA_PLACEHOLDER: P.faint,
@@ -223,9 +228,9 @@ const buildExact = (): Record<string, string> => ({
     BACKGROUND_MESSAGE_AUTOMOD_HOVER: tint(P.red, 0x1F),
     BACKGROUND_MESSAGE_HOVER: "#FFFFFF0A",
 
-    // Discord's main buttons: orange like the game's menu buttons, black text on top.
-    REDESIGN_BUTTON_PRIMARY_BACKGROUND: P.orange,
-    REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND: chroma.mix(P.orange, "#000000", 0.2, "rgb").hex(),
+    // Discord's main buttons: the accent (white), black text on top.
+    REDESIGN_BUTTON_PRIMARY_BACKGROUND: P.accent,
+    REDESIGN_BUTTON_PRIMARY_PRESSED_BACKGROUND: chroma.mix(P.accent, "#000000", 0.2, "rgb").hex(),
     REDESIGN_BUTTON_PRIMARY_TEXT: "#000000",
     REDESIGN_BUTTON_PRIMARY_ALT_BACKGROUND: P.yellow,
     REDESIGN_BUTTON_PRIMARY_ALT_TEXT: "#000000",
@@ -245,15 +250,15 @@ const buildExact = (): Record<string, string> => ({
     REDESIGN_CHANNEL_CATEGORY_NAME_TEXT: P.muted,
     REDESIGN_CHANNEL_MESSAGE_PREVIEW_TEXT: P.muted,
 
-    CONTROL_BRAND_FOREGROUND: P.orange,
-    CONTROL_BRAND_FOREGROUND_NEW: P.orange,
+    CONTROL_BRAND_FOREGROUND: P.accent,
+    CONTROL_BRAND_FOREGROUND_NEW: P.accent,
     SPOILER_HIDDEN_BACKGROUND: P.bg5,
     SPOILER_REVEALED_BACKGROUND: P.bg3,
 
     // Unread badges, send button, toggles: the bits that must pop.
     BADGE_NOTIFICATION_BACKGROUND: P.red,
     BADGE_BACKGROUND_DEFAULT: P.bg4,
-    CHAT_INPUT_SEND_BUTTON_ACTIVE_BACKGROUND: P.orange,
+    CHAT_INPUT_SEND_BUTTON_ACTIVE_BACKGROUND: P.accent,
     CHAT_INPUT_SEND_BUTTON_ICON_ACTIVE_TINT: "#000000",
     SWITCH_BACKGROUND_DEFAULT: P.bg3,
     SWITCH_BACKGROUND_SELECTED_DEFAULT: P.yellow,
@@ -273,9 +278,9 @@ const buildExact = (): Record<string, string> => ({
     REACTION_BACKGROUND_REACTED_DEFAULT: tint(P.yellow, 0x1A),
     REACTION_BORDER_REACTED_DEFAULT: P.yellow,
     REACTION_TEXT_REACTED_DEFAULT: P.yellow,
-    PROGRESSBAR_INDICATOR_BACKGROUND: P.orange,
+    PROGRESSBAR_INDICATOR_BACKGROUND: P.accent,
     PROGRESSBAR_TRACK_BACKGROUND: P.bg3,
-    ACTIVITY_TIMEBAR_PROGRESS_BACKGROUND: P.orange,
+    ACTIVITY_TIMEBAR_PROGRESS_BACKGROUND: P.accent,
     GRADIENT_PROGRESS_PILL_BACKGROUND: P.bg3,
     SLIDER_TRACK_BACKGROUND: P.bg3,
     MOBILE_ANDROID_BUTTON_BACKGROUND_RIPPLE: "#FFFFFF1F",
@@ -287,7 +292,7 @@ const buildExact = (): Record<string, string> => ({
     DEPRECATED_STORE_BG: P.void,
 });
 
-type Tone = "red" | "green" | "yellow" | "orange" | "cyan" | "purple" | "mention" | "faint" | "spoiler" | null;
+type Tone = "red" | "green" | "yellow" | "orange" | "accent" | "cyan" | "purple" | "mention" | "faint" | "spoiler" | null;
 
 function toneOf(k: string): Tone {
     if (/SPOILER/.test(k)) return "spoiler";
@@ -296,7 +301,7 @@ function toneOf(k: string): Tone {
     if (/(POSITIVE|SUCCESS|ONLINE|(^|_)GREEN(_|$))/.test(k)) return "green";
     if (/(WARNING|IDLE|CAUTION|(^|_)YELLOW(_|$))/.test(k)) return "yellow";
     if (/(LINK|(^|_)INFO(_|$))/.test(k)) return "cyan";
-    if (/(BRAND|BLURPLE|PREMIUM)/.test(k)) return "orange";
+    if (/(BRAND|BLURPLE|PREMIUM)/.test(k)) return "accent";
     if (/(STREAMING|(^|_)PURPLE(_|$))/.test(k)) return "purple";
     if (/(OFFLINE|INVISIBLE)/.test(k)) return "faint";
     return null;
@@ -345,7 +350,7 @@ export function semanticColorFor(k: string): string | undefined {
             return /REVEALED/.test(k) ? P.bg3 : P.bg5;
         case "faint":
             return isBg ? P.bg3 : P.faint;
-        case "red": case "green": case "yellow": case "orange": case "cyan": case "purple": {
+        case "red": case "green": case "yellow": case "orange": case "accent": case "cyan": case "purple": {
             const color = P[tone];
             if (isBg) return tonedBackground(k, color);
             return color;
