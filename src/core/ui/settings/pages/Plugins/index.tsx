@@ -64,9 +64,12 @@ export default function Plugins() {
             useObservable([pluginSettings]);
 
             const vdPlugins = Object.values(VdPluginManager.plugins).map(unifyVdPlugin);
-            const bnPlugins = [...registeredPlugins.values()].filter(p => isPluginInstalled(p.id) && !isCorePlugin(p.id)).map(unifyBunnyPlugin);
+            // Deltacord's built-in plugins (Message Logger, Tweaks, …) are listed first, then installed ones.
+            const installed = [...registeredPlugins.values()].filter(p => isPluginInstalled(p.id));
+            const builtIn = installed.filter(p => isCorePlugin(p.id)).map(unifyBunnyPlugin);
+            const bnPlugins = installed.filter(p => !isCorePlugin(p.id)).map(unifyBunnyPlugin);
 
-            return [...vdPlugins, ...bnPlugins];
+            return [...builtIn, ...vdPlugins, ...bnPlugins];
         }}
         ListHeaderComponent={() => {
             const unproxiedPlugins = Object.values(VdPluginManager.plugins).filter(p => !p.id.startsWith(VD_PROXY_PREFIX) && !p.id.startsWith(BUNNY_PROXY_PREFIX));
