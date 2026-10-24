@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.12.2...v1.13.0) (2026-10-24)
+
+
+### Features
+
+* seven new built-in plugins, and Show Hidden Channels rebuilt ([9c66c3a](https://github.com/Narehatechi/deltacord-bundle/commit/9c66c3afe52bcc714b5e7bf42ff5bbd0e8116a22))
+
 ## [1.12.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.12.1...v1.12.2) (2026-10-24)
 
 
