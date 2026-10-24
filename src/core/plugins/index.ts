@@ -18,6 +18,14 @@ export const getCorePlugins = (): Record<string, CorePlugin> => ({
     "deltacord.hideblocked": require("./hideblocked"),
     "deltacord.alwaystrust": require("./alwaystrust"),
     "deltacord.freeemojis": require("./freeemojis"),
+    "deltacord.funcommands": require("./funcommands"),
+    "deltacord.fancytext": require("./fancytext"),
+    "deltacord.translate": require("./translate"),
+    "deltacord.dictionary": require("./dictionary"),
+    "deltacord.calculator": require("./calculator"),
+    "deltacord.reminders": require("./reminders"),
+    "deltacord.keywords": require("./keywords"),
+    "deltacord.textreplace": require("./textreplace"),
 });
 
 /**

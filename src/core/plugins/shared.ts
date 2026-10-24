@@ -61,3 +61,34 @@ export const all = (...undo: Array<(() => unknown) | undefined>) => () => undo.f
         u?.();
     } catch { }
 });
+
+// ------------------------------------------------------------------ slash commands
+
+/** A slash command option's value (by name), or undefined. */
+export const option = (args: any[], name: string): any => args?.find?.((a: any) => a?.name === name)?.value;
+
+/** A message only you see (from Clyde-style "only you can see this"). */
+export function reply(channelId: string, content: string) {
+    try {
+        messageUtil.sendBotMessage(channelId, content);
+    } catch (e) {
+        console.error("[Deltacord] Couldn't show a reply", e);
+    }
+}
+
+/** Registers slash commands; returns how to remove them all. */
+export function registerCommands(commands: any[]): () => void {
+    // Required lazily: the commands API patches Discord when Deltacord starts.
+    const { registerCommand } = require("@lib/api/commands");
+    const undo: Array<() => unknown> = [];
+    for (const command of commands) {
+        try {
+            command.options ??= [];
+            command.shouldHide ??= () => false;
+            undo.push(registerCommand(command));
+        } catch (e) {
+            console.error(`[Deltacord] Couldn't add /${command.name}`, e);
+        }
+    }
+    return all(...undo);
+}
