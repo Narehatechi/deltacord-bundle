@@ -4,13 +4,16 @@
  * - initDeltacordLate(): once plugins are up (crash notice, automatic backup).
  */
 import { openAlert } from "@lib/ui/alerts";
+import { showToast } from "@lib/ui/toasts";
+import { findAssetId } from "@lib/api/assets";
+import { clipboard } from "@metro/common";
 import { AlertActionButton, AlertActions, AlertModal } from "@metro/common/components";
 import { BundleUpdaterManager } from "@lib/api/native/modules";
 import { settings } from "@lib/api/settings";
 
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
-import { isMinimalStartup, leaveMinimalStartup, markReady, unfinishedSteps } from "./breadcrumbs";
+import { isMinimalStartup, leaveMinimalStartup, markReady, stuckLastTime, stuckReportText, unfinishedSteps } from "./breadcrumbs";
 import { initExtras } from "./extras";
 import { startingInSafeMode } from "./safeModeGate";
 import { ensureThemeFontAtStartup } from "./themeFont";
@@ -78,16 +81,23 @@ async function showCrashNotice() {
 
 function explainMinimalStartup() {
     const stuck = unfinishedSteps();
+    const copy = async () => {
+        try {
+            clipboard.setString(await stuckReportText());
+            showToast("Report copied", findAssetId("CopyIcon"));
+        } catch { }
+    };
     openAlert(
         "deltacord-minimal-startup",
         <AlertModal
-            title="Started without Deltacord's extras"
-            content={`The last launch got stuck${stuck.length ? ` (it never finished: ${stuck.join(", ")})` : ""}, so Deltacord started without its own additions (theme setup, Message Logger, Tweaks and extras) and Discord could open.\n\nDeltacord > Doctor has the details for a report. You can try the full startup again whenever you like.`}
+            title={stuckLastTime() ? "Last launch got stuck" : "Started without Deltacord's extras"}
+            content={`${stuckLastTime() ? "Discord got stuck while starting last time" : "A launch got stuck earlier"}${stuck.length ? ` (never finished: ${stuck.join(", ")})` : ""}, so Deltacord started safely without its extras this time.\n\nCopy the report and send it so it can be fixed. The next launch tries everything again on its own.`}
             actions={<AlertActions>
-                <AlertActionButton text="Try full startup again" variant="primary" onPress={() => {
+                <AlertActionButton text="Copy report" variant="primary" onPress={() => void copy()} />
+                <AlertActionButton text="Try everything now" variant="secondary" onPress={() => {
                     void leaveMinimalStartup().then(() => setTimeout(() => BundleUpdaterManager.reload(), 300));
                 }} />
-                <AlertActionButton text="Stay like this for now" variant="secondary" />
+                <AlertActionButton text="OK" variant="secondary" />
             </AlertActions>}
         />
     );

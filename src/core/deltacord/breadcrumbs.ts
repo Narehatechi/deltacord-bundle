@@ -23,6 +23,10 @@ export interface StartupRecord {
     uiReady?: boolean;
     /** Started without Deltacord's own additions. */
     minimal?: boolean;
+    /** How long the launch stayed alive before Discord was ready (updated every few seconds). */
+    aliveMs?: number;
+    /** Errors reported during the launch (most recent last). */
+    errors?: string[];
     stages: { name: string; ms: number; }[];
 }
 
@@ -65,6 +69,9 @@ function save() {
 const MINIMAL_FILE = "pyoncord/deltacord-minimal.json";
 let minimal = false;
 let stuckLaunch: StartupRecord | null = null;
+/** The stuck launch was the one right before this (so it's worth telling you about now). */
+let stuckJustNow = false;
+export const stuckLastTime = () => stuckJustNow;
 
 /**
  * Minimal startup: after a launch that never got Discord open, Deltacord starts without its own
@@ -110,15 +117,23 @@ async function decideMinimal() {
                 if (await fm.fileExists(path)) retries = Number(JSON.parse(await fm.readFile(path, "utf8"))?.retries ?? 0);
             } catch { }
             stuckLaunch = previous;
+            stuckJustNow = true;
             minimal = true;
             await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch, retries }), "utf8");
             return;
         }
-        if (previous && !previous.opened) {
-            // The last launch froze: remember it and start minimal from now on.
+        const neverReady = !!previous && previous.opened && !previous.uiReady && (previous.aliveMs ?? 0) >= 25_000;
+        if (previous && (!previous.opened || neverReady)) {
+            // The last launch froze (or sat on Discord's loading screen): remember it and start
+            // minimal from now on.
             stuckLaunch = previous;
+            stuckJustNow = true;
             minimal = true;
-            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch }), "utf8");
+            let retries = 0;
+            try {
+                if (await fm.fileExists(path)) retries = Number(JSON.parse(await fm.readFile(path, "utf8"))?.retries ?? 0);
+            } catch { }
+            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch, retries }), "utf8");
             return;
         }
         if (await fm.fileExists(path)) {
@@ -156,11 +171,87 @@ export async function beginStartup(version: string) {
     } catch {
         previous = null;
     }
+    captureErrors();
+    startHeartbeat();
     // Show progress on screen if the last launch never got Discord open (or there's no record yet).
     showOnScreen = !previous?.opened;
     await decideMinimal();
     record.minimal = minimal;
     stage(minimal ? "starting (minimal, the last launch got stuck)" : "starting");
+}
+
+// ---------------------------------------------------------------- errors and liveness
+
+function noteError(text: string) {
+    if (!record) return;
+    const errors = (record.errors ??= []);
+    errors.push(text.slice(0, 600));
+    if (errors.length > 15) errors.splice(0, errors.length - 15);
+    save();
+}
+
+function describe(value: any): string {
+    if (value instanceof Error) return `${value.name}: ${value.message}\n${String(value.stack ?? "").split("\n").slice(0, 6).join("\n")}`;
+    if (typeof value === "string") return value;
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+/** Keeps errors from this launch (console.error and uncaught errors) for the stuck report. */
+function captureErrors() {
+    try {
+        const original = console.error;
+        console.error = (...args: any[]) => {
+            try {
+                if (record && !record.uiReady) noteError(args.map(describe).join(" "));
+            } catch { }
+            return original.apply(console, args);
+        };
+    } catch { }
+    try {
+        const ErrorUtils = (globalThis as any).ErrorUtils;
+        const previousHandler = ErrorUtils?.getGlobalHandler?.();
+        ErrorUtils?.setGlobalHandler?.((error: any, isFatal?: boolean) => {
+            try {
+                noteError(`${isFatal ? "FATAL " : ""}${describe(error)}`);
+            } catch { }
+            previousHandler?.(error, isFatal);
+        });
+    } catch { }
+}
+
+/** Notes every few seconds that the launch is still alive, until Discord is ready. */
+function startHeartbeat() {
+    const tick = () => {
+        if (!record || record.uiReady) return;
+        record.aliveMs = Date.now() - record.startedAt;
+        save();
+        if (record.aliveMs < 120_000) setTimeout(tick, 5000);
+    };
+    setTimeout(tick, 5000);
+}
+
+/** Recorded stages, errors and what the patched app saw, as text to copy and send. */
+export async function stuckReportText(): Promise<string> {
+    const launch = stuckLaunch;
+    const lines: string[] = ["Deltacord stuck-launch report", new Date().toISOString(), ""];
+    if (launch) {
+        lines.push(`Build ${launch.version}${launch.minimal ? " (minimal)" : ""} · opened: ${launch.opened} · plugins: ${launch.ready} · Discord ready: ${!!launch.uiReady} · alive ${Math.round((launch.aliveMs ?? 0) / 1000)}s`);
+        lines.push(`Never finished: ${unfinishedSteps(launch).join(", ") || "nothing recorded"}`);
+        lines.push("", "Steps:", ...launch.stages.slice(-30).map(s => `  ${s.name} @${s.ms}ms`));
+        if (launch.errors?.length) lines.push("", "Errors:", ...launch.errors.map(e => `  ${e}`));
+    } else {
+        lines.push("No record of the stuck launch.");
+    }
+    try {
+        const fm = files();
+        const path = `${fm.getConstants().DocumentsDirPath}/pyoncord/freeze-report.txt`;
+        if (await fm.fileExists(path)) lines.push("", "Patched app's report:", await fm.readFile(path, "utf8"));
+    } catch { }
+    return lines.join("\n");
 }
 
 /** Records a stage. `quiet` ones go to the file only, not on screen. */
