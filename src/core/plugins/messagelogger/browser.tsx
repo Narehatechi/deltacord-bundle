@@ -15,13 +15,13 @@ import { FlatList, Linking, Pressable, View } from "react-native";
 import { resolveSemanticColor, semanticColors } from "@lib/ui/color";
 
 import { removeLog } from "./logger";
-import { Log, logs } from "./store";
+import { Log, logs, setIgnored } from "./store";
 
 const ChannelStore = findByStoreNameLazy("ChannelStore");
 const GuildStore = findByStoreNameLazy("GuildStore");
 const UserStore = findByStoreNameLazy("UserStore");
 
-type Filter = "deleted" | "edited" | "all";
+type Filter = "deleted" | "edited" | "ghost" | "all";
 
 interface Entry {
     id: string;
@@ -65,7 +65,8 @@ function toEntry(id: string, log: Log): Entry {
     const raw = log.raw;
     const author = raw?.author?.global_name ?? raw?.author?.username ?? log.author?.name ?? "Unknown";
     const text = (log.deleted ? raw?.content : log.current) ?? raw?.content ?? log.edits[log.edits.length - 1]?.content ?? "";
-    const attachments = raw?.attachments?.length ? ` [${raw.attachments.length} attachment${raw.attachments.length > 1 ? "s" : ""}]` : "";
+    const files: any[] = Array.isArray(raw?.attachments) ? raw.attachments : [];
+    const attachments = files.length ? `\n${files.map(a => `[${a.filename ?? "file"}] ${a.url ?? a.proxy_url ?? ""}`).join("\n")}` : "";
     const place = placeOf(log);
     const history = log.edits.map(e => e.content).join(" ");
     return {
@@ -104,13 +105,38 @@ function jumpTo(id: string, log: Log) {
     Linking.openURL(`https://discord.com${path}`);
 }
 
+/** Everything logged, as plain text (newest first). */
+export function exportLogsText(): string {
+    const entries = [...logs.entries()].map(([id, log]) => toEntry(id, log)).sort((a, b) => b.when - a.when);
+    const lines = [`Deltacord message logs · ${new Date().toISOString()} · ${entries.length} messages`, ""];
+    for (const e of entries) {
+        const what = e.log.deleted ? (e.log.ghostPing ? "deleted (ghost ping)" : "deleted") : "edited";
+        lines.push(`[${new Date(e.when).toISOString()}] ${e.place} · ${e.author} · ${what}`);
+        for (const [i, edit] of e.log.edits.entries()) lines.push(`  version ${i + 1}: ${edit.content}`);
+        lines.push(`  ${e.log.edits.length ? "latest: " : ""}${e.text.replace(/\n/g, "\n  ")}`, "");
+    }
+    return lines.join("\n");
+}
+
 function openEntry(entry: Entry, refresh: () => void) {
     const { id, log } = entry;
     const history = log.edits.map((e, i) => `${i + 1}. ${e.content}`).join("\n");
+    const authorId = log.raw?.author?.id ?? log.author?.id;
+    const guildId = log.guildId ?? ChannelStore.getChannel?.(log.channelId)?.guild_id;
+    const ignore = (list: "ignoredUsers" | "ignoredChannels" | "ignoredGuilds", what: string, value?: string) => value ? (
+        <AlertActionButton
+            text={`Ignore this ${what}`}
+            variant="secondary"
+            onPress={() => {
+                setIgnored(list, value, true);
+                showToast(`New messages from this ${what} won't be logged`, findAssetId("EyeSlashIcon") ?? findAssetId("CheckmarkLargeIcon"));
+            }}
+        />
+    ) : null;
     openAlert(
         "deltacord-logged-message",
         <AlertModal
-            title={`${entry.author} · ${log.deleted ? "deleted" : "edited"} ${formatTime(entry.when)}`}
+            title={`${entry.author} · ${log.deleted ? (log.ghostPing ? "ghost ping" : "deleted") : "edited"} ${formatTime(entry.when)}`}
             content={`${entry.text}${history ? `\n\nEarlier versions:\n${history}` : ""}\n\n${entry.place}`}
             actions={<AlertActions>
                 <AlertActionButton text="Jump to message" variant="primary" onPress={() => jumpTo(id, log)} />
@@ -122,6 +148,9 @@ function openEntry(entry: Entry, refresh: () => void) {
                         showToast("Copied", findAssetId("CopyIcon"));
                     }}
                 />
+                {ignore("ignoredUsers", "person", authorId)}
+                {ignore("ignoredChannels", "channel", log.channelId)}
+                {ignore("ignoredGuilds", "server", guildId)}
                 <AlertActionButton
                     text="Forget this message"
                     variant="destructive"
@@ -145,7 +174,10 @@ export default function LogBrowser() {
     const rows = useMemo<Row[]>(() => {
         const q = query.trim().toLowerCase();
         const entries = [...logs.entries()]
-            .filter(([, log]) => filter === "all" || (filter === "deleted" ? log.deleted : !log.deleted && log.edits.length))
+            .filter(([, log]) => filter === "all"
+                || (filter === "deleted" ? log.deleted
+                    : filter === "ghost" ? log.ghostPing
+                        : !log.deleted && log.edits.length))
             .map(([id, log]) => toEntry(id, log))
             .filter(e => !q || e.search.includes(q))
             .sort((a, b) => b.when - a.when);
@@ -180,6 +212,7 @@ export default function LogBrowser() {
                 <View style={{ flexDirection: "row", gap: 8 }}>
                     {filterButton("deleted", "Deleted")}
                     {filterButton("edited", "Edited")}
+                    {filterButton("ghost", "Ghost pings")}
                     {filterButton("all", "All")}
                 </View>
             </Stack>

@@ -12,8 +12,10 @@ import { fileExists, readFile, writeFile } from "@lib/api/native/fs";
 const LOG_FILE = "deltacord-message-logs.json";
 const FILE_VERSION = 1;
 
-/** Oldest logs are dropped past this, so the file can't grow forever. */
+/** Oldest logs are dropped past this (Settings.maxLogs), so the file can't grow forever. */
 export const MAX_LOGS = 5000;
+export const MAX_LOGS_CHOICES = [1000, 5000, 20000];
+export const KEEP_DAYS_CHOICES = [0, 7, 30, 90];
 /** Edit history kept per message. */
 export const MAX_EDITS = 25;
 
@@ -24,14 +26,46 @@ export interface Settings {
     persist: boolean;
     ignoreSelf: boolean;
     ignoreBots: boolean;
+    /** Only log direct messages and group DMs. */
+    onlyDMs: boolean;
+    /** Skip channels (and servers) you've muted. */
+    ignoreMuted: boolean;
+    ignoredUsers: string[];
+    ignoredChannels: string[];
+    ignoredGuilds: string[];
+    /** Deleted messages turn red (otherwise they're only labelled). */
+    redText: boolean;
+    /** The label says when it was deleted ("deleted 3:04 PM"). */
+    showDeleteTime: boolean;
+    /** Show earlier versions of edited messages in the chat. */
+    showEditsInChat: boolean;
+    /** Tell me when someone pings me and deletes the message. */
+    ghostPings: boolean;
+    /** A small message whenever a message is deleted in the channel you're looking at. */
+    toastDeletes: boolean;
+    maxLogs: number;
+    /** Forget logs older than this many days (0: never). */
+    keepDays: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
     logDeletes: true,
     logEdits: true,
     persist: true,
-    ignoreSelf: true,
+    ignoreSelf: false,
     ignoreBots: false,
+    onlyDMs: false,
+    ignoreMuted: false,
+    ignoredUsers: [],
+    ignoredChannels: [],
+    ignoredGuilds: [],
+    redText: true,
+    showDeleteTime: true,
+    showEditsInChat: true,
+    ghostPings: true,
+    toastDeletes: false,
+    maxLogs: MAX_LOGS,
+    keepDays: 0,
 };
 
 export const settingsStore = wrapSync(createStorage<Partial<Settings>>(createMMKVBackend("DELTACORD_MESSAGE_LOGGER")));
@@ -61,6 +95,8 @@ export interface Log {
     author?: { id?: string; name?: string; };
     /** Latest known text, for edited messages that weren't deleted. */
     current?: string;
+    /** It pinged you and was deleted. */
+    ghostPing?: boolean;
 }
 
 interface LogFile {
@@ -102,9 +138,15 @@ export async function loadLogs() {
 export const isLoaded = () => loaded;
 
 function prune() {
-    if (logs.size <= MAX_LOGS) return;
+    const { maxLogs, keepDays } = getSettings();
+    if (keepDays > 0) {
+        const cutoff = Date.now() - keepDays * 86_400_000;
+        for (const [id, log] of logs) if (log.touched < cutoff) logs.delete(id);
+    }
+    const limit = maxLogs > 0 ? maxLogs : MAX_LOGS;
+    if (logs.size <= limit) return;
     const oldest = [...logs.entries()].sort(([, a], [, b]) => a.touched - b.touched);
-    for (const [id] of oldest.slice(0, logs.size - MAX_LOGS)) logs.delete(id);
+    for (const [id] of oldest.slice(0, logs.size - limit)) logs.delete(id);
 }
 
 /** Saves soon, batching bursts of deletes/edits into one write. */
@@ -140,10 +182,18 @@ export function logFor(id: string, channelId: string, guildId?: string): Log {
 }
 
 export function counts() {
-    let deleted = 0, edited = 0;
+    let deleted = 0, edited = 0, ghostPings = 0;
     for (const log of logs.values()) {
         if (log.deleted) deleted++;
         if (log.edits.length) edited++;
+        if (log.ghostPing) ghostPings++;
     }
-    return { deleted, edited, total: logs.size };
+    return { deleted, edited, ghostPings, total: logs.size };
+}
+
+/** Adds or removes an id from one of the ignore lists. */
+export function setIgnored(list: "ignoredUsers" | "ignoredChannels" | "ignoredGuilds", id: string, ignored: boolean) {
+    const current = [...(getSettings()[list] ?? [])];
+    const next = ignored ? [...new Set([...current, id])] : current.filter(x => x !== id);
+    settingsStore[list] = next;
 }

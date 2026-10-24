@@ -11,8 +11,8 @@ import { resolveSemanticColor, semanticColors } from "@lib/ui/color";
 import { findByName } from "@metro";
 import { processColor } from "react-native";
 
-import { takeChanged } from "./logger";
-import { logs } from "./store";
+import { marking, takeChanged } from "./logger";
+import { getSettings, logs } from "./store";
 
 const MESSAGE_ROW = 1;
 const CHANGE_TYPE_UPDATE = 2;
@@ -42,12 +42,27 @@ function withContent(record: any, content: string) {
 // Set while we ask Discord to render an old version, so our own patch leaves it alone.
 let renderingHistory = false;
 
+/** Messages Discord drew a row for recently (tells whether row styling works). */
+const seen = new Set<string>();
+let rowsStyled = 0;
+export const rowsStyledCount = () => rowsStyled;
+export const rowManagerFound = () => marking.rowsWork;
+
+function clock(ms: number) {
+    const d = new Date(ms);
+    const h = d.getHours();
+    return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
 export function patchRows() {
     const RowManager = findByName("RowManager");
     if (!RowManager?.prototype?.generate) {
-        console.error("[MessageLogger] RowManager not found; deleted/edited messages won't be styled");
+        console.error("[MessageLogger] RowManager not found; deleted/edited messages get a note in their text instead");
+        marking.rowsWork = false;
         return () => { };
     }
+    marking.rowsWork = true;
+    marking.rowSeen = (id: string) => seen.has(id);
 
     return after("generate", RowManager.prototype, function (this: any, [args]: any[], row: any) {
         if (renderingHistory) return;
@@ -55,15 +70,18 @@ export function patchRows() {
         try {
             const message = row?.type === MESSAGE_ROW ? row.message : undefined;
             if (!message?.id) return;
+            seen.add(message.id);
+            if (seen.size > 2000) seen.delete(seen.values().next().value!);
 
             if (takeChanged(message.id)) row.changeType = CHANGE_TYPE_UPDATE;
 
             const log = logs.get(message.id);
             if (!log) return;
 
+            const settings = getSettings();
             const editedLabel = typeof message.edited === "string" && message.edited ? message.edited : "edited";
 
-            if (log.edits.length && args?.message) {
+            if (settings.showEditsInChat && log.edits.length && args?.message) {
                 const current = Array.isArray(message.content) ? message.content : [];
                 const currentJson = JSON.stringify(current);
                 const history: any[] = [];
@@ -92,9 +110,10 @@ export function patchRows() {
             }
 
             if (log.deleted) {
-                message.textColor = criticalColor();
-                message.edited = "deleted";
+                if (settings.redText) message.textColor = criticalColor();
+                message.edited = settings.showDeleteTime && log.deletedAt ? `deleted ${clock(log.deletedAt)}` : "deleted";
             }
+            rowsStyled++;
         } catch (e) {
             console.error("[MessageLogger] Failed to style a row", e);
         }

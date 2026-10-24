@@ -4,7 +4,8 @@ import { awaitStorage } from "@lib/api/storage";
 import { findAssetId } from "@lib/api/assets";
 import { openAlert } from "@lib/ui/alerts";
 import { showToast } from "@lib/ui/toasts";
-import { NavigationNative } from "@metro/common";
+import { clipboard, NavigationNative } from "@metro/common";
+import { findByStoreNameLazy } from "@metro/wrappers";
 import { AlertActionButton, AlertActions, AlertModal, Stack, TableRow, TableRowGroup, TableSwitchRow } from "@metro/common/components";
 import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
@@ -13,10 +14,10 @@ import { announceSave } from "@core/deltacord/extras";
 import { startingInSafeMode } from "@core/deltacord/safeModeGate";
 
 import { defineCorePlugin } from "..";
-import LogBrowser from "./browser";
-import { clearAllLogs, interceptMessages } from "./logger";
-import { patchRows } from "./rows";
-import { counts, getSettings, loadLogs, saveNow, Settings, settingsStore } from "./store";
+import LogBrowser, { exportLogsText } from "./browser";
+import { clearAllLogs, interceptMessages, stats } from "./logger";
+import { patchRows, rowManagerFound, rowsStyledCount } from "./rows";
+import { counts, getSettings, KEEP_DAYS_CHOICES, loadLogs, MAX_LOGS_CHOICES, saveNow, setIgnored, Settings, settingsStore } from "./store";
 
 const PLUGIN_ID = "deltacord.messagelogger";
 let cleanups: (() => void)[] = [];
@@ -55,31 +56,80 @@ function icon(name: string, variant?: string) {
     return id ? <TableRow.Icon source={id} variant={variant} /> : undefined;
 }
 
+const ChannelStore = findByStoreNameLazy("ChannelStore");
+const GuildStore = findByStoreNameLazy("GuildStore");
+const UserStore = findByStoreNameLazy("UserStore");
+
+function nameOf(list: "ignoredUsers" | "ignoredChannels" | "ignoredGuilds", id: string): string {
+    try {
+        if (list === "ignoredUsers") {
+            const u = UserStore.getUser?.(id);
+            return u ? (u.globalName ?? u.username) : `User ${id}`;
+        }
+        if (list === "ignoredGuilds") return GuildStore.getGuild?.(id)?.name ?? `Server ${id}`;
+        const c = ChannelStore.getChannel?.(id);
+        return c?.name ? `#${c.name}` : `Channel ${id}`;
+    } catch {
+        return id;
+    }
+}
+
+const cycle = <T,>(choices: T[], current: T) => choices[(choices.indexOf(current) + 1) % choices.length];
+
 function SettingsComponent() {
     useProxy(settingsStore);
     const settings = getSettings();
-    const [stats, setStats] = useState(counts());
+    const [now, setNow] = useState(0);
     const navigation = NavigationNative.useNavigation();
 
     useEffect(() => {
-        const timer = setInterval(() => setStats(counts()), 2000);
+        const timer = setInterval(() => setNow(n => n + 1), 2000);
         return () => clearInterval(timer);
     }, []);
+    void now;
+    const totals = counts();
 
     const toggle = (key: keyof Settings) => (value: boolean) => {
-        settingsStore[key] = value;
+        (settingsStore as any)[key] = value;
         announceSave();
         if (key === "persist" && value) saveNow();
     };
+    const switchRow = (key: keyof Settings, label: string, subLabel: string | undefined, iconName: string) => (
+        <TableSwitchRow
+            label={label}
+            subLabel={subLabel}
+            icon={icon(iconName)}
+            value={settings[key] as boolean}
+            onValueChange={toggle(key)}
+        />
+    );
+
+    const status = !running
+        ? "Off"
+        : stats.events === 0
+            ? "Not receiving messages yet. If this stays, restart Discord."
+            : `Working. This session: ${stats.deletesKept} of ${stats.deletesSeen} deletes kept, ${stats.editsLogged} edits logged${stats.ghostPings ? `, ${stats.ghostPings} ghost pings` : ""}.`;
+    const ignored = (["ignoredUsers", "ignoredChannels", "ignoredGuilds"] as const)
+        .flatMap(list => (settings[list] ?? []).map(id => ({ list, id })));
 
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
+                <TableRowGroup title="Status">
+                    <TableRow label="Message Logger" subLabel={status} icon={icon(running && stats.events ? "CheckmarkLargeIcon" : "CircleInformationIcon-primary")} />
+                    <TableRow
+                        label="Marking in chat"
+                        subLabel={rowManagerFound()
+                            ? `Colours and labels (${rowsStyledCount()} shown this session)`
+                            : "Notes under the message text (Discord's chat can't be coloured in this version)"}
+                        icon={icon("PaintPaletteIcon")}
+                    />
+                </TableRowGroup>
                 <TableRowGroup>
                     <TableRow
                         arrow
                         label="Browse deleted messages"
-                        subLabel={`${stats.deleted} deleted · ${stats.edited} edited. Search, jump to them, or copy them.`}
+                        subLabel={`${totals.deleted} deleted · ${totals.edited} edited · ${totals.ghostPings} ghost pings. Search, jump to them, copy or export.`}
                         icon={icon("MagnifyingGlassIcon")}
                         onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", {
                             title: "Deleted messages",
@@ -88,51 +138,69 @@ function SettingsComponent() {
                     />
                 </TableRowGroup>
                 <TableRowGroup title="Logging">
-                    <TableSwitchRow
-                        label="Keep deleted messages"
-                        subLabel="Deleted messages stay in the chat in red, marked (deleted)."
-                        icon={icon("TrashIcon")}
-                        value={settings.logDeletes}
-                        onValueChange={toggle("logDeletes")}
-                    />
-                    <TableSwitchRow
-                        label="Keep edit history"
-                        subLabel="Earlier versions show above the current text."
-                        icon={icon("PencilIcon")}
-                        value={settings.logEdits}
-                        onValueChange={toggle("logEdits")}
-                    />
-                    <TableSwitchRow
-                        label="Remember after restart"
-                        subLabel="Saves logs on your device and shows deleted messages again when you reopen a channel."
-                        icon={icon("DownloadIcon")}
-                        value={settings.persist}
-                        onValueChange={toggle("persist")}
-                    />
+                    {switchRow("logDeletes", "Keep deleted messages", "Deleted messages stay in the chat, marked (deleted).", "TrashIcon")}
+                    {switchRow("logEdits", "Keep edit history", "Remembers what messages said before they were edited.", "PencilIcon")}
+                    {switchRow("ghostPings", "Ghost ping alerts", "Tells you when someone pings you and deletes it, and keeps that message.", "AtIcon")}
+                    {switchRow("toastDeletes", "Tell me about deletes", "A small message when something is deleted in the chat you're looking at.", "BellIcon")}
                 </TableRowGroup>
-                <TableRowGroup title="Ignore">
-                    <TableSwitchRow
-                        label="My own messages"
-                        subLabel="When you delete your own message, it really goes away."
-                        icon={icon("UserIcon")}
-                        value={settings.ignoreSelf}
-                        onValueChange={toggle("ignoreSelf")}
-                    />
-                    <TableSwitchRow
-                        label="Bots"
-                        icon={icon("RobotIcon")}
-                        value={settings.ignoreBots}
-                        onValueChange={toggle("ignoreBots")}
-                    />
+                <TableRowGroup title="In the chat">
+                    {switchRow("redText", "Red deleted messages", undefined, "PaintPaletteIcon")}
+                    {switchRow("showDeleteTime", "Show when it was deleted", "\"deleted 3:04 PM\" instead of \"deleted\".", "ClockIcon")}
+                    {switchRow("showEditsInChat", "Show edit history in the chat", "Earlier versions show with the message.", "HistoryIcon")}
+                </TableRowGroup>
+                <TableRowGroup title="What to log">
+                    {switchRow("onlyDMs", "Only DMs", "Skip servers; log direct messages and group chats.", "ChatIcon")}
+                    {switchRow("ignoreMuted", "Skip muted channels", undefined, "BellSlashIcon")}
+                    {switchRow("ignoreSelf", "Skip my own messages", "When you delete your own message, it really goes away.", "UserIcon")}
+                    {switchRow("ignoreBots", "Skip bots", undefined, "RobotIcon")}
+                </TableRowGroup>
+                <TableRowGroup title={`Ignored (${ignored.length})`}>
+                    {ignored.length === 0
+                        ? <TableRow label="Nothing ignored" subLabel="In the deleted messages browser, open a message to ignore its person, channel or server." />
+                        : ignored.map(({ list, id }) => (
+                            <TableRow
+                                key={`${list}:${id}`}
+                                label={nameOf(list, id)}
+                                subLabel={list === "ignoredUsers" ? "Person · tap to stop ignoring" : list === "ignoredGuilds" ? "Server · tap to stop ignoring" : "Channel · tap to stop ignoring"}
+                                icon={icon("XSmallIcon")}
+                                onPress={() => {
+                                    setIgnored(list, id, false);
+                                    announceSave();
+                                }}
+                            />
+                        ))}
                 </TableRowGroup>
                 <TableRowGroup title="Saved logs">
+                    {switchRow("persist", "Remember after restart", "Saves logs on your device and shows deleted messages again when you reopen a channel.", "DownloadIcon")}
                     <TableRow
-                        label="Deleted messages kept"
-                        trailing={<TableRow.TrailingText text={String(stats.deleted)} />}
+                        label="Keep at most"
+                        subLabel="Tap to change. The oldest are forgotten first."
+                        icon={icon("ListBulletsIcon")}
+                        trailing={<TableRow.TrailingText text={`${settings.maxLogs} messages`} />}
+                        onPress={() => {
+                            settingsStore.maxLogs = cycle(MAX_LOGS_CHOICES, settings.maxLogs);
+                            announceSave();
+                        }}
                     />
                     <TableRow
-                        label="Messages with edit history"
-                        trailing={<TableRow.TrailingText text={String(stats.edited)} />}
+                        label="Forget after"
+                        subLabel="Tap to change."
+                        icon={icon("ClockIcon")}
+                        trailing={<TableRow.TrailingText text={settings.keepDays ? `${settings.keepDays} days` : "Never"} />}
+                        onPress={() => {
+                            settingsStore.keepDays = cycle(KEEP_DAYS_CHOICES, settings.keepDays);
+                            announceSave();
+                            saveNow();
+                        }}
+                    />
+                    <TableRow
+                        label="Copy everything as text"
+                        subLabel="All kept messages, newest first, to paste or save."
+                        icon={icon("CopyIcon")}
+                        onPress={() => {
+                            clipboard.setString(exportLogsText());
+                            showToast("Message logs copied", findAssetId("CopyIcon"));
+                        }}
                     />
                     <TableRow
                         label="Clear all logs"
@@ -150,7 +218,7 @@ function SettingsComponent() {
                                         onPress={() => {
                                             clearAllLogs();
                                             saveNow();
-                                            setStats(counts());
+                                            setNow(n => n + 1);
                                             showToast("Message logs cleared", findAssetId("TrashIcon"));
                                         }}
                                     />
@@ -169,8 +237,8 @@ export default defineCorePlugin({
     manifest: {
         id: PLUGIN_ID,
         name: "Message Logger",
-        version: "1.0.0",
-        description: "Keeps deleted messages and edit history, even after you restart the app.",
+        version: "2.0.0",
+        description: "Keeps deleted messages and edit history, catches ghost pings, and lets you search and export it all.",
         authors: [{ name: "Deltacord" }],
     },
     start() {

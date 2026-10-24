@@ -10,6 +10,8 @@
  *   raw messages, which is the most faithful copy to save when one is deleted.
  */
 import { intercept } from "@lib/api/flux";
+import { findAssetId } from "@lib/api/assets";
+import { showToast } from "@lib/ui/toasts";
 import { FluxDispatcher } from "@metro/common";
 import { findByStoreNameLazy } from "@metro/wrappers";
 
@@ -17,6 +19,69 @@ import { getSettings, logFor, logs, MAX_EDITS, scheduleSave } from "./store";
 
 const MessageStore = findByStoreNameLazy("MessageStore");
 const UserStore = findByStoreNameLazy("UserStore");
+const ChannelStore = findByStoreNameLazy("ChannelStore");
+const SelectedChannelStore = findByStoreNameLazy("SelectedChannelStore");
+const UserGuildSettingsStore = findByStoreNameLazy("UserGuildSettingsStore");
+
+/** What the logger has seen this launch (shown in its settings, to tell if it's working). */
+export const stats = {
+    events: 0,
+    deletesSeen: 0,
+    deletesKept: 0,
+    editsSeen: 0,
+    editsLogged: 0,
+    ghostPings: 0,
+    restored: 0,
+};
+
+/**
+ * If Discord's chat rows can't be styled (a Discord change), deleted and edited messages get a
+ * small note added to their text instead, so they're still marked. Set by rows.ts.
+ */
+export const marking = { rowsWork: true, rowSeen: (_id: string) => true };
+
+const DELETED_NOTE = "\n-# \u{1F5D1} deleted";
+const EDITED_NOTE = "\n-# \u270F was: ";
+/** Deltacord's notes are taken off before text is saved or compared. */
+export const withoutNotes = (content: string) => {
+    if (typeof content !== "string") return content;
+    const cut = [content.indexOf(DELETED_NOTE), content.indexOf(EDITED_NOTE)].filter(i => i >= 0);
+    return cut.length ? content.slice(0, Math.min(...cut)) : content;
+};
+
+function clock(ms: number) {
+    const d = new Date(ms);
+    const h = d.getHours();
+    return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** The note added to a message's text when rows can't be styled. */
+function noteFor(id: string, base: string): string {
+    const log = logs.get(id);
+    if (!log) return base;
+    let out = base;
+    const settings = getSettings();
+    if (settings.showEditsInChat && log.edits.length) {
+        const last = log.edits[log.edits.length - 1].content;
+        out += EDITED_NOTE + (last.length > 300 ? `${last.slice(0, 300)}…` : last).replace(/\n/g, " ");
+    }
+    if (log.deleted) out += DELETED_NOTE + (settings.showDeleteTime && log.deletedAt ? ` ${clock(log.deletedAt)}` : "");
+    return out;
+}
+
+/** Puts the note into the message's text (only used when rows can't be styled). */
+function applyNote(channelId: string, id: string, guildId?: string) {
+    const record = MessageStore.getMessage?.(channelId, id);
+    if (!record) return;
+    const content = noteFor(id, withoutNotes(record.content ?? ""));
+    if (content === record.content) return;
+    bypassed.add(id);
+    try {
+        FluxDispatcher.dispatch({ type: "MESSAGE_UPDATE", guildId, message: { id, channel_id: channelId, content } });
+    } catch { } finally {
+        bypassed.delete(id);
+    }
+}
 
 const EPHEMERAL_FLAG = 1 << 6;
 const RAW_CACHE_LIMIT = 3000;
@@ -81,11 +146,46 @@ function rawFromRecord(record: any): any {
     };
 }
 
-function shouldLog(record: any) {
+const myId = () => UserStore.getCurrentUser?.()?.id;
+
+function shouldLog(record: any, channelId?: string, guildId?: string) {
     const settings = getSettings();
+    const authorId = record.author?.id;
     if (settings.ignoreBots && record.author?.bot) return false;
-    if (settings.ignoreSelf && record.author?.id === UserStore.getCurrentUser?.()?.id) return false;
+    if (settings.ignoreSelf && authorId === myId()) return false;
+    if (authorId && settings.ignoredUsers?.includes(authorId)) return false;
+
+    const channel = channelId ? ChannelStore.getChannel?.(channelId) : undefined;
+    const guild = guildId ?? channel?.guild_id;
+    if (channelId && settings.ignoredChannels?.includes(channelId)) return false;
+    if (guild && settings.ignoredGuilds?.includes(guild)) return false;
+    if (settings.onlyDMs && guild) return false;
+    if (settings.ignoreMuted && guild && channelId) {
+        try {
+            if (UserGuildSettingsStore.isChannelMuted?.(guild, channelId) || UserGuildSettingsStore.isMuted?.(guild)) return false;
+        } catch { }
+    }
     return true;
+}
+
+/** The message pinged me (not @everyone). */
+function pingsMe(record: any): boolean {
+    const me = myId();
+    if (!me || record.author?.id === me) return false;
+    const mentions: any[] = Array.isArray(record.mentions) ? record.mentions : [];
+    if (mentions.some(m => m === me || m?.id === me)) return true;
+    return typeof record.content === "string" && record.content.includes(`<@${me}>`);
+}
+
+function authorName(record: any) {
+    const a = record.author ?? {};
+    return a.globalName ?? a.global_name ?? a.username ?? "Someone";
+}
+
+function placeName(channelId: string) {
+    const channel = ChannelStore.getChannel?.(channelId);
+    if (!channel) return "a chat";
+    return channel.name ? `#${channel.name}` : "your DMs";
 }
 
 /** Marks a message deleted if it should be kept. Returns whether the delete must be blocked. */
@@ -99,16 +199,30 @@ function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
     // Unsent and ephemeral messages are dismissed, not deleted.
     if (record.state && record.state !== "SENT") return false;
     if ((record.flags ?? 0) & EPHEMERAL_FLAG) return false;
-    if (!shouldLog(record)) return false;
+
+    const settings = getSettings();
+    const ghost = pingsMe(record);
+    if (ghost && settings.ghostPings) {
+        stats.ghostPings++;
+        showToast(`\u{1F47B} Ghost ping from ${authorName(record)} in ${placeName(channelId)}`, findAssetId("AtIcon") ?? findAssetId("BellIcon"));
+    } else if (settings.toastDeletes && channelId === SelectedChannelStore.getChannelId?.()) {
+        showToast(`${authorName(record)} deleted a message`, findAssetId("TrashIcon"));
+    }
+    // A ghost ping is kept even from ignored places: that's the point of catching it.
+    if (!shouldLog(record, channelId, guildId) && !(ghost && settings.ghostPings)) return false;
 
     const log = logFor(id, channelId, guildId);
     log.deleted = true;
     log.deletedAt = Date.now();
     log.touched = Date.now();
+    if (ghost) log.ghostPing = true;
+    log.author ??= { id: record.author?.id, name: authorName(record) };
     // Freshest content wins: the cache may hold an older version from before an edit.
     const raw = rawCache.get(id);
-    log.raw = raw ? { ...raw, content: record.content ?? raw.content } : rawFromRecord(record);
+    const content = withoutNotes(record.content ?? raw?.content ?? "");
+    log.raw = raw ? { ...raw, content } : { ...rawFromRecord(record), content };
     changed.add(id);
+    stats.deletesKept++;
     scheduleSave();
     return true;
 }
@@ -117,30 +231,53 @@ function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
 export function rerender(channelId: string, id: string, guildId?: string) {
     changed.add(id);
     Promise.resolve().then(() => {
-        FluxDispatcher.dispatch({ type: "MESSAGE_UPDATE", guildId, message: { id, channel_id: channelId } });
+        try {
+            if (!marking.rowsWork) return applyNote(channelId, id, guildId);
+            FluxDispatcher.dispatch({ type: "MESSAGE_UPDATE", guildId, message: { id, channel_id: channelId } });
+        } catch { }
+        // On screen but Discord never drew the row through the part Deltacord styles: switch to notes.
+        if (channelId === SelectedChannelStore.getChannelId?.()) {
+            setTimeout(() => {
+                if (marking.rowsWork && !marking.rowSeen(id)) {
+                    marking.rowsWork = false;
+                    applyNote(channelId, id, guildId);
+                }
+            }, 1500);
+        }
     });
 }
 
 function onUpdate(payload: any) {
     const update = payload.message;
     if (!update?.id || !update.channel_id) return;
+    if (bypassed.has(update.id)) return;
     cacheRaw({ ...rawCache.get(update.id), ...update });
 
     const settings = getSettings();
-    if (!settings.logEdits || bypassed.has(update.id)) return;
+    if (!settings.logEdits) return;
 
     const record = MessageStore.getMessage(update.channel_id, update.id);
-    if (!record || !shouldLog(record)) return;
-    if (typeof update.content !== "string" || !record.content || update.content === record.content) return;
+    if (typeof update.content !== "string" || !record?.content) return;
+    const before = withoutNotes(record.content);
+    const after = withoutNotes(update.content);
+    if (after === before) return;
+    stats.editsSeen++;
+    const guildId = payload.guildId ?? update.guild_id;
+    if (!shouldLog(record, update.channel_id, guildId)) return;
 
-    const log = logFor(update.id, update.channel_id, payload.guildId ?? update.guild_id);
-    log.edits.push({ content: record.content, at: Date.now() });
-    log.current = update.content;
-    log.author ??= { id: record.author?.id, name: record.author?.globalName ?? record.author?.username };
+    const log = logFor(update.id, update.channel_id, guildId);
+    log.edits.push({ content: before, at: Date.now() });
+    log.current = after;
+    log.author ??= { id: record.author?.id, name: authorName(record) };
     if (log.edits.length > MAX_EDITS) log.edits.splice(0, log.edits.length - MAX_EDITS);
     log.touched = Date.now();
     changed.add(update.id);
+    stats.editsLogged++;
     scheduleSave();
+    // Without row styling, the earlier version goes into a note once the edit has landed.
+    if (!marking.rowsWork && settings.showEditsInChat) {
+        Promise.resolve().then(() => applyNote(update.channel_id, update.id, guildId));
+    }
 }
 
 const byIdDesc = (a: any, b: any) => {
@@ -186,8 +323,9 @@ function onLoadMessages(payload: any) {
             || (reachedStart && oldest !== null && id < oldest);
         if (!belongs) continue;
 
-        messages.push({ ...raw });
+        messages.push(marking.rowsWork ? { ...raw } : { ...raw, content: noteFor(raw.id, raw.content ?? "") });
         added++;
+        stats.restored++;
     }
 
     if (added) {
@@ -200,6 +338,7 @@ function onLoadMessages(payload: any) {
 /** Starts listening. Returns a function that stops. */
 export function interceptMessages() {
     const unintercept = intercept(payload => {
+        stats.events++;
         try {
             // Network loads, and loads from Discord's on-device message cache.
             if (payload.type?.startsWith("LOAD_MESSAGES_SUCCESS") || payload.type === "LOCAL_MESSAGES_LOADED") {
@@ -217,6 +356,7 @@ export function interceptMessages() {
                     return;
 
                 case "MESSAGE_DELETE": {
+                    stats.deletesSeen++;
                     if (!getSettings().logDeletes) return;
                     const { id, channelId, guildId } = payload;
                     if (!keepDeleted(channelId, id, guildId)) return;
@@ -228,6 +368,7 @@ export function interceptMessages() {
                     if (!getSettings().logDeletes) return;
                     const { ids, channelId, guildId } = payload;
                     if (!Array.isArray(ids)) return;
+                    stats.deletesSeen += ids.length;
                     const kept = ids.filter((id: string) => keepDeleted(channelId, id, guildId));
                     if (!kept.length) return;
                     for (const id of kept) rerender(channelId, id, guildId);
@@ -260,7 +401,11 @@ export function removeLog(id: string) {
     try {
         FluxDispatcher.dispatch(log.deleted
             ? { type: "MESSAGE_DELETE", id, channelId: log.channelId, guildId: log.guildId }
-            : { type: "MESSAGE_UPDATE", guildId: log.guildId, message: { id, channel_id: log.channelId } });
+            : {
+                type: "MESSAGE_UPDATE",
+                guildId: log.guildId,
+                message: { id, channel_id: log.channelId, content: withoutNotes(MessageStore.getMessage?.(log.channelId, id)?.content ?? log.current ?? "") },
+            });
     } catch {
         // The message may not be loaded right now; nothing to redraw.
     } finally {
