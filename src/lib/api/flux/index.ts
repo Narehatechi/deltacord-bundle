@@ -9,31 +9,41 @@ export const dispatcher = FluxDispatcher;
 type Intercept = (payload: Record<string, any> & { type: string; }) => any;
 let intercepts: Intercept[] = [];
 
+/** What a blocked dispatch becomes: an action nothing in Discord listens to. */
+export const BLOCKED_TYPE = "DELTACORD_BLOCKED";
+
 /**
  * @internal
+ * Runs the intercepts on every dispatch, by wrapping FluxDispatcher.dispatch. (Discord's own
+ * interceptor list isn't reliable across versions; wrapping dispatch is what current mods use.)
  */
 export function injectFluxInterceptor() {
-    const cb = (payload: any) => {
+    const { before } = require("spitroast");
+    return before("dispatch", dispatcher, (args: any[]) => {
+        const payload = args[0];
+        if (!payload || typeof payload !== "object" || typeof payload.type !== "string" || payload.type === BLOCKED_TYPE) return;
+        let blocked = false;
         for (const intercept of intercepts) {
-            const res = intercept(payload);
-
-            // nullish -> nothing, falsy -> block, object -> modify
-            if (res == null) {
+            let res: any;
+            try {
+                res = intercept(payload);
+            } catch (e) {
+                console.error("[Flux] An intercept failed", e);
                 continue;
-            } else if (!res) {
-                payload[blockedSym] = true;
-            } else if (typeof res === "object") {
+            }
+            // nullish -> nothing, falsy -> block, object -> modify
+            if (res == null) continue;
+            if (!res) blocked = true;
+            else if (typeof res === "object") {
                 Object.assign(payload, res);
                 payload[modifiedSym] = true;
             }
         }
-
-        return blockedSym in payload;
-    };
-
-    (dispatcher._interceptors ??= []).unshift(cb);
-
-    return () => dispatcher._interceptors &&= dispatcher._interceptors.filter(v => v !== cb);
+        if (blocked) {
+            payload[blockedSym] = true;
+            args[0] = { type: BLOCKED_TYPE, original: payload };
+        }
+    });
 }
 
 /**

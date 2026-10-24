@@ -227,13 +227,32 @@ function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
     return true;
 }
 
+/** An unused message flag bit: flipping it makes Discord see a change and draw the row again. */
+const REDRAW_FLAG = 0x10000000;
+
+/** Makes Discord redraw a message's row (an update with nothing changed is ignored). */
+export function redraw(channelId: string, id: string, guildId?: string) {
+    const record = MessageStore.getMessage?.(channelId, id);
+    if (!record) return;
+    bypassed.add(id);
+    try {
+        FluxDispatcher.dispatch({
+            type: "MESSAGE_UPDATE",
+            guildId,
+            message: { id, channel_id: channelId, guild_id: guildId, flags: (record.flags | 0) ^ REDRAW_FLAG },
+        });
+    } catch { } finally {
+        bypassed.delete(id);
+    }
+}
+
 /** Asks Discord to redraw a message (it can't be dispatched mid-dispatch, so it's queued). */
 export function rerender(channelId: string, id: string, guildId?: string) {
     changed.add(id);
     Promise.resolve().then(() => {
         try {
             if (!marking.rowsWork) return applyNote(channelId, id, guildId);
-            FluxDispatcher.dispatch({ type: "MESSAGE_UPDATE", guildId, message: { id, channel_id: channelId } });
+            redraw(channelId, id, guildId);
         } catch { }
         // On screen but Discord never drew the row through the part Deltacord styles: switch to notes.
         if (channelId === SelectedChannelStore.getChannelId?.()) {
@@ -404,7 +423,12 @@ export function removeLog(id: string) {
             : {
                 type: "MESSAGE_UPDATE",
                 guildId: log.guildId,
-                message: { id, channel_id: log.channelId, content: withoutNotes(MessageStore.getMessage?.(log.channelId, id)?.content ?? log.current ?? "") },
+                message: {
+                    id,
+                    channel_id: log.channelId,
+                    content: withoutNotes(MessageStore.getMessage?.(log.channelId, id)?.content ?? log.current ?? ""),
+                    flags: (MessageStore.getMessage?.(log.channelId, id)?.flags | 0) ^ REDRAW_FLAG,
+                },
             });
     } catch {
         // The message may not be loaded right now; nothing to redraw.
