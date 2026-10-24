@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.3...v1.12.0) (2026-10-24)
+
+
+### Features
+
+* white accent instead of orange in the Deltarune and Light World themes ([9420ca6](https://github.com/Narehatechi/deltacord-bundle/commit/9420ca6c0473a4ed5b06deca5ac9484469df5594))
+
 ## [1.11.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.2...v1.11.3) (2026-10-24)
 
 
