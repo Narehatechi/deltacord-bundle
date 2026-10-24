@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 import { announceSave, isUserTime } from "@core/deltacord/extras";
 import { onThemeChosen } from "@core/deltacord/themeFont";
 import { startingInSafeMode } from "@core/deltacord/safeModeGate";
-import { isMinimalStartup } from "@core/deltacord/breadcrumbs";
+import { isFeatureOn } from "@core/deltacord/breadcrumbs";
 import { settings } from "@lib/api/settings";
 
 import initColors from "./colors";
@@ -209,8 +209,8 @@ export async function initThemes() {
             writeFile("../vendetta_theme.json", "null");
         }
 
-        // Minimal startup (after a launch that got stuck): no theme at all this time.
-        if (isMinimalStartup()) return;
+        // Self-healing: the theme can sit out a launch while a stuck startup is being sorted out.
+        if (!isFeatureOn("theme")) return;
 
         await newAwaitStorage(colorsPref);
 
@@ -218,7 +218,7 @@ export async function initThemes() {
         initColors(currentTheme?.data ?? null);
 
         // Not in Safe Mode, where themes are off; they're added on the next normal launch.
-        if (!isMinimalStartup() && !await startingInSafeMode()) {
+        if (!await startingInSafeMode()) {
             await installBuiltinThemes().catch(e => console.error("Failed to install built-in themes", e));
         }
         updateThemes().catch(e => console.error("Failed to update themes", e));

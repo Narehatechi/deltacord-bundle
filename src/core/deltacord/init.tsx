@@ -13,21 +13,22 @@ import { settings } from "@lib/api/settings";
 
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
-import { isMinimalStartup, leaveMinimalStartup, markReady, stuckLastTime, stuckReportText, unfinishedSteps } from "./breadcrumbs";
+import { culpritFoundNow, FEATURE_NAMES, FEATURES, isFeatureOn, markReady, stuckLastTime, stuckReportText } from "./breadcrumbs";
 import { initExtras } from "./extras";
-import { startingInSafeMode } from "./safeModeGate";
+import { markGuardDecided, startingInSafeMode } from "./safeModeGate";
 import { ensureThemeFontAtStartup } from "./themeFont";
 import { getCurrentTheme } from "@lib/addons/themes";
 
 export async function initDeltacordEarly() {
     try {
-        await initCrashGuard();
+        if (isFeatureOn("crashguard")) await initCrashGuard();
+        else markGuardDecided();
     } catch (e) {
         console.error("[Deltacord] Crash guard failed to start", e);
     }
     try {
         // Safe Mode: none of the extras either.
-        if (await startingInSafeMode()) return;
+        if (!isFeatureOn("extras") || await startingInSafeMode()) return;
         return initExtras();
     } catch (e) {
         console.error("[Deltacord] Extras failed to start", e);
@@ -79,24 +80,25 @@ async function showCrashNotice() {
     }
 }
 
-function explainMinimalStartup() {
-    const stuck = unfinishedSteps();
+function explainStuckLaunch() {
+    const found = culpritFoundNow();
+    const off = FEATURES.filter(f => !isFeatureOn(f)).map(f => FEATURE_NAMES[f]);
     const copy = async () => {
         try {
             clipboard.setString(await stuckReportText());
             showToast("Report copied", findAssetId("CopyIcon"));
         } catch { }
     };
+    const content = found
+        ? `Found it: "${FEATURE_NAMES[found]}" got Discord stuck while starting, so it's off for now and everything else is back on. Copy the report and send it so it can be fixed; the fix will turn it back on.`
+        : `Discord got stuck while starting last time, so this launch started with some of Deltacord off (${off.join(", ")}). Deltacord turns them back on one per launch to find the one causing it; just keep using Discord.\n\nCopy the report and send it so it can be fixed.`;
     openAlert(
-        "deltacord-minimal-startup",
+        "deltacord-stuck-launch",
         <AlertModal
-            title={stuckLastTime() ? "Last launch got stuck" : "Started without Deltacord's extras"}
-            content={`${stuckLastTime() ? "Discord got stuck while starting last time" : "A launch got stuck earlier"}${stuck.length ? ` (never finished: ${stuck.join(", ")})` : ""}, so Deltacord started safely without its extras this time.\n\nCopy the report and send it so it can be fixed. The next launch tries everything again on its own.`}
+            title={found ? "Found what got stuck" : "Last launch got stuck"}
+            content={content}
             actions={<AlertActions>
                 <AlertActionButton text="Copy report" variant="primary" onPress={() => void copy()} />
-                <AlertActionButton text="Try everything now" variant="secondary" onPress={() => {
-                    void leaveMinimalStartup().then(() => setTimeout(() => BundleUpdaterManager.reload(), 300));
-                }} />
                 <AlertActionButton text="OK" variant="secondary" />
             </AlertActions>}
         />
@@ -105,13 +107,10 @@ function explainMinimalStartup() {
 
 export function initDeltacordLate() {
     markReady();
-    if (isMinimalStartup()) {
-        setTimeout(explainMinimalStartup, 1500);
-        return;
-    }
-    showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
+    if (stuckLastTime() || culpritFoundNow()) setTimeout(explainStuckLaunch, 1500);
+    if (isFeatureOn("crashguard")) showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
     // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
-    if (!settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);
+    if (isFeatureOn("fontsync") && isFeatureOn("theme") && !settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);
     // A quiet safety net, well after startup so it never slows Discord down.
     setTimeout(() => void autoBackupIfDue(), 90_000);
 }

@@ -1,4 +1,4 @@
-import { isMinimalStartup, stage } from "@core/deltacord/breadcrumbs";
+import { isFeatureOn, stage } from "@core/deltacord/breadcrumbs";
 import { getCorePlugins } from "@core/plugins";
 import { settings } from "@lib/api/settings";
 import { readFile, removeFile, writeFile } from "@lib/api/native/fs";
@@ -397,11 +397,15 @@ export async function initPlugins() {
     const allowedInSafeMode = (id: string) => isCorePlugin(id) && !id.startsWith("deltacord.");
 
     // Now, start all enabled plugins...
-    // Minimal startup (after a launch that froze): Deltacord's own feature plugins stay off too.
-    const minimal = isMinimalStartup();
+    // Self-healing: plugin groups can sit out a launch while a stuck startup is being sorted out.
+    const groupOn = (id: string) =>
+        id === "deltacord.messagelogger" ? isFeatureOn("logger")
+            : id === "deltacord.tweaks" ? isFeatureOn("tweaks")
+                : isCorePlugin(id) ? true
+                    : isFeatureOn("plugins");
 
     await Promise.allSettled([...registeredPlugins.keys()].map(async id => {
-        if (minimal && id.startsWith("deltacord.")) return;
+        if (!groupOn(id)) return;
         if (isPluginEnabled(id) && (!safeMode || allowedInSafeMode(id))) {
             // Recorded so a plugin that never finishes starting shows up in the stuck-startup report.
             stage(`start: plugin ${id}`, { quiet: true });

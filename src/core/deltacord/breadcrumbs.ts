@@ -64,22 +64,64 @@ function save() {
     } catch { }
 }
 
-// ---------------------------------------------------------------- minimal startup
+// ---------------------------------------------------------------- self-healing features
+//
+// Deltacord's features are in groups. Normally all are on. If a launch gets stuck, Deltacord finds
+// the group responsible on its own, without you doing anything: the next launch starts with the
+// groups off (so Discord opens), then each launch that opens fine switches one more group back on.
+// If switching one on gets Discord stuck, that group stays off and the rest come back. A new
+// Deltacord build gives every group another chance (that's how a fix reaches you).
 
-const MINIMAL_FILE = "pyoncord/deltacord-minimal.json";
-let minimal = false;
+/** In the order they're switched back on: least likely to cause trouble first. */
+export const FEATURES = ["extras", "crashguard", "fontsync", "logger", "plugins", "tweaks", "theme"] as const;
+export type Feature = typeof FEATURES[number];
+
+export const FEATURE_NAMES: Record<Feature, string> = {
+    extras: "Extras (blips, save sounds)",
+    crashguard: "Crash guard",
+    fontsync: "Theme font",
+    logger: "Message Logger",
+    plugins: "Your plugins",
+    tweaks: "Tweaks",
+    theme: "Theme",
+};
+
+interface FeatureState {
+    /** Finding the culprit: only `on` (plus `trying`) are on. */
+    probing: boolean;
+    on: Feature[];
+    trying: Feature | null;
+    /** Groups found to get Discord stuck (stay off until a new build). */
+    culprits: Feature[];
+    /** Build the culprits were found with. */
+    version?: string;
+    stuckLaunch?: StartupRecord | null;
+}
+
+const FEATURES_FILE = "pyoncord/deltacord-features.json";
+const OLD_MINIMAL_FILE = "pyoncord/deltacord-minimal.json";
+/** Written by the patched app when it sees a launch get stuck. */
+const STUCK_FLAG = "pyoncord/last-launch-stuck";
+
+let state: FeatureState = { probing: false, on: [], trying: null, culprits: [] };
 let stuckLaunch: StartupRecord | null = null;
-/** The stuck launch was the one right before this (so it's worth telling you about now). */
 let stuckJustNow = false;
-export const stuckLastTime = () => stuckJustNow;
+let foundJustNow: Feature | null = null;
 
-/**
- * Minimal startup: after a launch that never got Discord open, Deltacord starts without its own
- * additions (theme setup, Message Logger, Tweaks, extras) until you choose to try the full startup
- * again. Discord opens, and the stuck launch is kept so the Doctor page can show where it froze.
- */
-export const isMinimalStartup = () => minimal;
+export const stuckLastTime = () => stuckJustNow;
+/** A group that was just found to get Discord stuck (this launch is the first without it). */
+export const culpritFoundNow = () => foundJustNow;
 export const getStuckLaunch = () => stuckLaunch;
+export const featureState = () => state;
+
+/** Whether a feature group runs this launch. */
+export function isFeatureOn(feature: Feature): boolean {
+    if (state.probing) return state.on.includes(feature) || state.trying === feature;
+    return !state.culprits.includes(feature);
+}
+
+/** Some groups are off this launch (finding a culprit, or one was found). */
+export const isMinimalStartup = () => FEATURES.some(f => !isFeatureOn(f));
 
 /** Steps the stuck launch started but never finished. */
 export function unfinishedSteps(launch: StartupRecord | null = stuckLaunch): string[] {
@@ -92,73 +134,97 @@ export function unfinishedSteps(launch: StartupRecord | null = stuckLaunch): str
     return [...started];
 }
 
+/** Turn everything back on now (next launch). */
 export async function leaveMinimalStartup() {
-    try {
-        await files()?.removeFile?.("documents", MINIMAL_FILE);
-    } catch { }
-    minimal = false;
+    state = { probing: false, on: [], trying: null, culprits: [] };
+    await saveState();
 }
 
-/** Written by the patched app when it sees a launch get stuck after Deltacord opened Discord. */
-const STUCK_FLAG = "pyoncord/last-launch-stuck";
-
-async function decideMinimal() {
-    const fm = files();
-    const path = `${fm.getConstants().DocumentsDirPath}/${MINIMAL_FILE}`;
+async function saveState() {
     try {
-        // The patched app saw the last launch get stuck (even after Deltacord had finished).
-        const flagPath = `${fm.getConstants().DocumentsDirPath}/${STUCK_FLAG}`;
-        if (await fm.fileExists(flagPath)) {
-            try {
-                await fm.removeFile?.("documents", STUCK_FLAG);
-            } catch { }
-            let retries = 0;
-            try {
-                if (await fm.fileExists(path)) retries = Number(JSON.parse(await fm.readFile(path, "utf8"))?.retries ?? 0);
-            } catch { }
-            stuckLaunch = previous;
-            stuckJustNow = true;
-            minimal = true;
-            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch, retries }), "utf8");
-            return;
-        }
-        const neverReady = !!previous && previous.opened && !previous.uiReady && (previous.aliveMs ?? 0) >= 25_000;
-        if (previous && (!previous.opened || neverReady)) {
-            // The last launch froze (or sat on Discord's loading screen): remember it and start
-            // minimal from now on.
-            stuckLaunch = previous;
-            stuckJustNow = true;
-            minimal = true;
-            let retries = 0;
-            try {
-                if (await fm.fileExists(path)) retries = Number(JSON.parse(await fm.readFile(path, "utf8"))?.retries ?? 0);
-            } catch { }
-            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch, retries }), "utf8");
-            return;
-        }
-        if (await fm.fileExists(path)) {
-            const saved = JSON.parse(await fm.readFile(path, "utf8")) ?? {};
-            stuckLaunch = saved.stuckLaunch ?? null;
-            const retries = Number(saved.retries ?? 0);
-            // The last (minimal) launch opened fine: try the full startup again on its own. If that
-            // gets stuck, the stuck flag brings minimal back; after two tries it stays minimal until
-            // you choose "Try full startup again".
-            if (previous?.minimal && previous.uiReady && retries < 2) {
-                minimal = false;
-                await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ ...saved, retries: retries + 1, retrying: true }), "utf8");
-                return;
-            }
-            if (saved.retrying && previous && !previous.minimal && previous.uiReady) {
-                // The retried full startup worked: minimal startup is over.
-                await fm.removeFile?.("documents", MINIMAL_FILE);
-                return;
-            }
-            minimal = true;
-        }
-    } catch {
-        // Can't tell: keep it simple and start minimal only if the last launch froze.
-        minimal = !!previous && !previous.opened;
+        await files()?.writeFile?.("documents", FEATURES_FILE, JSON.stringify(state), "utf8");
+    } catch { }
+}
+
+/** Decides which groups run this launch, from how the last launch went. */
+export function nextFeatureState(
+    current: FeatureState,
+    last: StartupRecord | null,
+    stuckFlag: boolean,
+    version: string,
+): { state: FeatureState; stuck: boolean; found: Feature | null; } {
+    const next: FeatureState = { ...current, on: [...current.on], culprits: [...current.culprits] };
+    let found: Feature | null = null;
+
+    // A new build gives every group another chance.
+    if (next.version && next.version !== version) {
+        next.culprits = [];
+        next.version = undefined;
+        if (!next.probing) next.on = [];
     }
+
+    const neverReady = !!last && last.opened && !last.uiReady && (last.aliveMs ?? 0) >= 25_000;
+    const stuck = stuckFlag || (!!last && !last.opened) || neverReady;
+    const ok = !!last && last.uiReady === true;
+
+    if (stuck) {
+        next.stuckLaunch = last;
+        if (next.probing && next.trying) {
+            // Switching this group on got Discord stuck: it's the culprit.
+            found = next.trying;
+            if (!next.culprits.includes(found)) next.culprits.push(found);
+            next.version = version;
+            next.trying = null;
+        } else if (!next.probing) {
+            // Start finding the culprit: everything off (but known culprits) this launch.
+            next.probing = true;
+            next.on = [];
+            next.trying = null;
+        }
+        // (Stuck with every group off: it isn't one of them; stay like this, the report says more.)
+    } else if (ok && next.probing) {
+        if (next.trying) {
+            if (!next.on.includes(next.trying)) next.on.push(next.trying);
+            next.trying = null;
+        }
+        const candidate = FEATURES.find(f => !next.on.includes(f) && !next.culprits.includes(f));
+        if (candidate) next.trying = candidate;
+        else {
+            // Every group checked: back to normal, minus any culprit.
+            next.probing = false;
+            next.on = [];
+        }
+    }
+    // Otherwise (closed before Discord was ready, or offline): same as last time.
+
+    return { state: next, stuck, found };
+}
+
+async function decideFeatures(version: string) {
+    const fm = files();
+    const docs = fm.getConstants().DocumentsDirPath;
+    try {
+        if (await fm.fileExists(`${docs}/${FEATURES_FILE}`)) {
+            state = { ...state, ...JSON.parse(await fm.readFile(`${docs}/${FEATURES_FILE}`, "utf8")) };
+        }
+    } catch { }
+
+    let stuckFlag = false;
+    try {
+        if (await fm.fileExists(`${docs}/${STUCK_FLAG}`)) {
+            stuckFlag = true;
+            await fm.removeFile?.("documents", STUCK_FLAG);
+        }
+        // The old all-or-nothing "minimal startup" is replaced by this.
+        if (await fm.fileExists(`${docs}/${OLD_MINIMAL_FILE}`)) await fm.removeFile?.("documents", OLD_MINIMAL_FILE);
+    } catch { }
+
+    const result = nextFeatureState(state, previous, stuckFlag, version);
+    state = result.state;
+    stuckJustNow = result.stuck;
+    foundJustNow = result.found;
+    stuckLaunch = state.stuckLaunch ?? null;
+    await saveState();
 }
 
 /** First thing at startup. */
@@ -175,9 +241,10 @@ export async function beginStartup(version: string) {
     startHeartbeat();
     // Show progress on screen if the last launch never got Discord open (or there's no record yet).
     showOnScreen = !previous?.opened;
-    await decideMinimal();
-    record.minimal = minimal;
-    stage(minimal ? "starting (minimal, the last launch got stuck)" : "starting");
+    await decideFeatures(version);
+    record.minimal = isMinimalStartup();
+    const off = FEATURES.filter(f => !isFeatureOn(f));
+    stage(off.length ? `starting (off: ${off.join(", ")})` : "starting");
 }
 
 // ---------------------------------------------------------------- errors and liveness

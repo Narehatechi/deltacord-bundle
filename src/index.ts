@@ -40,6 +40,7 @@ export default async () => {
     };
 
     // After a launch that froze, Deltacord's own additions sit this one out (see breadcrumbs).
+    // Self-healing: after a stuck launch some feature groups sit out (see breadcrumbs).
     const minimal = crumbs.isMinimalStartup();
     const skip = () => undefined;
     // In minimal startup, network steps run in the background instead of holding Discord back.
@@ -54,10 +55,10 @@ export default async () => {
     };
 
     await Promise.all([
-        step("Deltacord", minimal ? skip : initDeltacordEarly),
+        step("Deltacord", initDeltacordEarly),
         step("Themes", initThemes),
         step("Flux", injectFluxInterceptor),
-        step("Message Logger", minimal ? skip : startMessageLoggerEarly),
+        step("Message Logger", crumbs.isFeatureOn("logger") ? startMessageLoggerEarly : skip),
         step("Settings patches", patchSettings),
         step("Commands", patchCommands),
         step("JSX", patchJsx),
@@ -88,7 +89,7 @@ export default async () => {
 
     // Once done, load Vendetta plugins
     crumbs.stage("start: Vendetta plugins", { quiet: true });
-    VdPluginManager.initPlugins()
+    (crumbs.isFeatureOn("plugins") ? VdPluginManager.initPlugins() : Promise.resolve(() => { }))
         .then(u => lib.unload.push(u))
         .finally(() => crumbs.stage("done: Vendetta plugins", { quiet: true }))
         .catch(() => alert("Failed to initialize Vendetta plugins"));

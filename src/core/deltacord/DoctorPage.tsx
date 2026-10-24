@@ -23,7 +23,7 @@ import { ScrollView } from "react-native";
 
 import { listLocalBackups } from "./backup";
 import { failedSteps, slowSteps, stepTimes } from "./startup";
-import { getStuckLaunch, isMinimalStartup, previousStartup, unfinishedSteps } from "./breadcrumbs";
+import { FEATURE_NAMES, FEATURES, featureState, getStuckLaunch, isFeatureOn, isMinimalStartup, previousStartup, unfinishedSteps } from "./breadcrumbs";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
@@ -152,7 +152,17 @@ async function runChecks(): Promise<Check[]> {
 
         const stuck = getStuckLaunch() ?? (previousStartup()?.opened === false ? previousStartup() : null);
         if (isMinimalStartup()) {
-            add({ group: "Deltacord", label: "Startup", value: "minimal (a launch got stuck)", status: "warn", hint: "Deltacord's own additions are off. Try the full startup again from the notice, or Reload in normal mode." });
+            const fs = featureState();
+            const off = FEATURES.filter(f => !isFeatureOn(f)).map(f => FEATURE_NAMES[f]);
+            add({
+                group: "Deltacord",
+                label: "Self-healing",
+                value: fs.probing
+                    ? `finding what got stuck · off this launch: ${off.join(", ")}`
+                    : `off because it got Discord stuck: ${fs.culprits.map(f => FEATURE_NAMES[f]).join(", ")}`,
+                status: "warn",
+                hint: "Deltacord switches these back on by itself; a fix in a new version turns them back on.",
+            });
         }
         if (stuck) {
             const lastStage = stuck.stages[stuck.stages.length - 1]?.name ?? "the very start";
