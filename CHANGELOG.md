@@ -1,3 +1,10 @@
+## [1.12.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.12.1...v1.12.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* no more stuck-launch pop-ups; the report is in Doctor > Copy report ([850784c](https://github.com/Narehatechi/deltacord-bundle/commit/850784c7c3a8cf2a6586291e648f9592f64fbc51))
+
 ## [1.12.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.12.0...v1.12.1) (2026-10-24)
 
 
