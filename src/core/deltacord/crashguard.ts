@@ -33,6 +33,8 @@ interface GuardState {
     lastCrash?: { at: number; message: string; suspect?: Suspect; };
     /** Set when the guard switched Safe Mode on, so we can explain it once. */
     autoSafeMode?: boolean;
+    /** Safe Mode that older builds switched on by themselves has been switched back off. */
+    safeModeRestored?: boolean;
 }
 
 const docs = () => NativeFileModule.getConstants().DocumentsDirPath;
@@ -118,16 +120,18 @@ async function runCrashGuard() {
 
     state.unstable = (state.unstable ?? 0) + 1;
 
-    if (state.unstable > UNSTABLE_LIMIT) {
+    // Everything stays on: the guard no longer switches Safe Mode on by itself (a launch that got
+    // stuck wasn't caused by plugins, and Safe Mode only hid them). Older builds did, after a few
+    // stuck launches, and it stayed on, so switch that off once.
+    if (!state.safeModeRestored) {
         try {
             await awaitStorage(settings);
-            if (!settings.safeMode?.enabled) {
-                settings.safeMode = { ...settings.safeMode, enabled: true };
-                state.autoSafeMode = true;
-            }
+            if (settings.safeMode?.enabled) settings.safeMode = { ...settings.safeMode, enabled: false };
         } catch { }
-        state.unstable = 0;
+        state.safeModeRestored = true;
+        delete state.autoSafeMode;
     }
+    if (state.unstable > UNSTABLE_LIMIT) state.unstable = 0;
     await writeState(state);
 
     // Remember fatal errors (best effort: the app may be gone before this finishes writing).
