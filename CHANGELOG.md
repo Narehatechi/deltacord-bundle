@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.13.0...v1.14.0) (2026-10-24)
+
+
+### Features
+
+* Message Logger 2.0 ([961a01d](https://github.com/Narehatechi/deltacord-bundle/commit/961a01d0fe655a882043cb4f2167d0589e034d84))
+
 # [1.13.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.12.2...v1.13.0) (2026-10-24)
 
 
