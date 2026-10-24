@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.10.0...v1.11.0) (2026-10-24)
+
+
+### Features
+
+* self-healing startup that keeps everything on ([5799330](https://github.com/Narehatechi/deltacord-bundle/commit/57993305454ca77eb780db00c08703f2f04a9ea8))
+
 # [1.10.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.6...v1.10.0) (2026-10-24)
 
 
