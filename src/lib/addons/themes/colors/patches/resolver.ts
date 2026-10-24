@@ -25,6 +25,18 @@ const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
 export default function patchDefinitionAndResolver() {
     const callback = ([theme]: any[]) => theme === _colorRef.key ? [_colorRef.current!.reference] : void 0;
 
+    // What Discord's native side is told when a Deltacord theme is applied. A different native theme
+    // makes Discord recreate its screen (on Android), which left it stuck on its launch logo. So if
+    // Discord is already on a theme of the same kind (any dark one for a dark theme), keep that one.
+    const DARK = ["dark", "darker", "midnight", "amoled"];
+    const nativeCallback = ([theme]: any[]) => {
+        if (theme !== _colorRef.key || !_colorRef.current) return void 0;
+        const wanted = _colorRef.current.reference;
+        const current = _colorRef.lastSetDiscordTheme;
+        const sameKind = (DARK.includes(wanted) && DARK.includes(current)) || (wanted === "light" && current === "light");
+        return [sameKind && current ? current : wanted];
+    };
+
     Object.keys(tokenReference.RawColor).forEach(key => {
         Object.defineProperty(tokenReference.RawColor, key, {
             configurable: true,
@@ -39,7 +51,7 @@ export default function patchDefinitionAndResolver() {
     const unpatches = [
         before("isThemeDark", isThemeModule, callback),
         before("isThemeLight", isThemeModule, callback),
-        before("updateTheme", NativeThemeModule, callback),
+        before("updateTheme", NativeThemeModule, nativeCallback),
         instead("resolveSemanticColor", tokenReference.default.meta ?? tokenReference.default.internal, (args: any[], orig: any) => {
             if (!_colorRef.current) return orig(...args);
             if (args[0] !== _colorRef.key) return orig(...args);
