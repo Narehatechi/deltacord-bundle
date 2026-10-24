@@ -23,7 +23,7 @@ import { ScrollView } from "react-native";
 
 import { listLocalBackups } from "./backup";
 import { failedSteps, slowSteps, stepTimes } from "./startup";
-import { FEATURE_NAMES, FEATURES, featureState, getStuckLaunch, isFeatureOn, isMinimalStartup, previousStartup, unfinishedSteps } from "./breadcrumbs";
+import { FEATURE_NAMES, FEATURES, featureState, getStuckLaunch, isFeatureOn, isMinimalStartup, previousStartup, stuckReportText, unfinishedSteps } from "./breadcrumbs";
 
 type Status = "ok" | "warn" | "bad" | "info";
 
@@ -230,8 +230,12 @@ export default function DoctorPage() {
                     <Button
                         text="Copy report"
                         disabled={!checks}
-                        onPress={() => {
-                            clipboard.setString(report(checks ?? []));
+                        onPress={async () => {
+                            let stuck = "";
+                            try {
+                                stuck = "\n\n" + await stuckReportText();
+                            } catch { }
+                            clipboard.setString(report(checks ?? []) + stuck);
                             showToast("Report copied", findAssetId("CopyIcon"));
                         }}
                     />

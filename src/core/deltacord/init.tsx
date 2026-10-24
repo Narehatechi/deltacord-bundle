@@ -4,16 +4,13 @@
  * - initDeltacordLate(): once plugins are up (crash notice, automatic backup).
  */
 import { openAlert } from "@lib/ui/alerts";
-import { showToast } from "@lib/ui/toasts";
-import { findAssetId } from "@lib/api/assets";
-import { clipboard } from "@metro/common";
 import { AlertActionButton, AlertActions, AlertModal } from "@metro/common/components";
 import { BundleUpdaterManager } from "@lib/api/native/modules";
 import { settings } from "@lib/api/settings";
 
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
-import { culpritFoundNow, isFeatureOn, markReady, stuckLastTime, stuckReportText } from "./breadcrumbs";
+import { isFeatureOn, markReady } from "./breadcrumbs";
 import { initExtras } from "./extras";
 import { markGuardDecided, startingInSafeMode } from "./safeModeGate";
 import { ensureThemeFontAtStartup } from "./themeFont";
@@ -80,31 +77,9 @@ async function showCrashNotice() {
     }
 }
 
-function explainStuckLaunch() {
-    const found = culpritFoundNow();
-    const copy = async () => {
-        try {
-            clipboard.setString(await stuckReportText());
-            showToast("Report copied", findAssetId("CopyIcon"));
-        } catch { }
-    };
-    const content = "Discord got stuck while starting last time. Everything is still on. Copy the report and send it so it can be fixed.";
-    openAlert(
-        "deltacord-stuck-launch",
-        <AlertModal
-            title={found ? "Found what got stuck" : "Last launch got stuck"}
-            content={content}
-            actions={<AlertActions>
-                <AlertActionButton text="Copy report" variant="primary" onPress={() => void copy()} />
-                <AlertActionButton text="OK" variant="secondary" />
-            </AlertActions>}
-        />
-    );
-}
-
 export function initDeltacordLate() {
     markReady();
-    if (stuckLastTime() || culpritFoundNow()) setTimeout(explainStuckLaunch, 1500);
+    // A launch that got stuck is reported quietly: Doctor > Copy report has the details.
     if (isFeatureOn("crashguard")) showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
     // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
     if (isFeatureOn("fontsync") && isFeatureOn("theme") && !settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);
