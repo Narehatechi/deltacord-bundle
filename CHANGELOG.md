@@ -1,3 +1,10 @@
+## [1.9.5](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.4...v1.9.5) (2026-10-24)
+
+
+### Bug Fixes
+
+* minimal startup switches back to full on its own ([142d0cd](https://github.com/Narehatechi/deltacord-bundle/commit/142d0cd4d4b28252b1eb3a8ba520ca0827fa6344))
+
 ## [1.9.4](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.3...v1.9.4) (2026-10-24)
 
 
