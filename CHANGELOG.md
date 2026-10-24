@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.15.1...v1.16.0) (2026-10-24)
+
+
+### Features
+
+* Doctor self-test for every built-in plugin ([a39b6da](https://github.com/Narehatechi/deltacord-bundle/commit/a39b6da06ba5a7b77ca0b0c131a1395294f58943))
+
 ## [1.15.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.15.0...v1.15.1) (2026-10-24)
 
 
