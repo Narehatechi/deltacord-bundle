@@ -22,6 +22,7 @@ import { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 
 import { listLocalBackups } from "./backup";
+import { runSelfTest } from "./selfTest";
 import { failedSteps, slowSteps, stepTimes } from "./startup";
 import { FEATURE_NAMES, FEATURES, featureState, getStuckLaunch, isFeatureOn, isMinimalStartup, previousStartup, stuckReportText, unfinishedSteps } from "./breadcrumbs";
 
@@ -184,6 +185,11 @@ async function runChecks(): Promise<Check[]> {
             value: guard.lastCrash ? `${ago(guard.lastCrash.at)}${guard.lastCrash.suspect ? ` · ${guard.lastCrash.suspect.name}` : ""}` : "none recorded",
             status: guard.lastCrash ? "warn" : "ok",
         });
+    });
+
+    // Every built-in plugin: is it running, and can it find the parts of Discord it needs?
+    await safe("Self-test", "Self-test", () => {
+        checks.push(...runSelfTest());
     });
 
     return checks;

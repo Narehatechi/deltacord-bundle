@@ -5,6 +5,9 @@ import { commands as commandsModule, messageUtil } from "@metro/common";
 
 let commands: ApplicationCommand[] = [];
 
+/** Names of the slash commands Deltacord has added (for Doctor's self-test). */
+export const addedCommandNames = () => commands.map(c => c.name);
+
 /**
  * @internal
  */

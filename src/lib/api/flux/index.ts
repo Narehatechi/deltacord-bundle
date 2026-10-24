@@ -9,6 +9,9 @@ export const dispatcher = FluxDispatcher;
 type Intercept = (payload: Record<string, any> & { type: string; }) => any;
 let intercepts: Intercept[] = [];
 
+/** How many dispatches went through Deltacord's hook (for Doctor's self-test). */
+export const fluxStats = { dispatches: 0, blocked: 0 };
+
 /** What a blocked dispatch becomes: an action nothing in Discord listens to. */
 export const BLOCKED_TYPE = "DELTACORD_BLOCKED";
 
@@ -22,6 +25,7 @@ export function injectFluxInterceptor() {
     return before("dispatch", dispatcher, (args: any[]) => {
         const payload = args[0];
         if (!payload || typeof payload !== "object" || typeof payload.type !== "string" || payload.type === BLOCKED_TYPE) return;
+        fluxStats.dispatches++;
         let blocked = false;
         for (const intercept of intercepts) {
             let res: any;
@@ -41,6 +45,7 @@ export function injectFluxInterceptor() {
         }
         if (blocked) {
             payload[blockedSym] = true;
+            fluxStats.blocked++;
             args[0] = { type: BLOCKED_TYPE, original: payload };
         }
     });

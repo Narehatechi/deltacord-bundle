@@ -26,6 +26,9 @@ let skipTypes: number[] = [];
 let realCheck = false;
 let undoAll: (() => void) | undefined;
 
+/** What was found when it started (for Doctor's self-test). */
+export const hiddenState = { permissionCheck: false, chatScreen: null as string | null, messageFetchers: 0 };
+
 export function isHidden(channel: any): boolean {
     if (!channel || !permissions?.can || VIEW == null || skipTypes.includes(channel.type)) return false;
     // Threads follow their parent channel.
@@ -79,6 +82,7 @@ export default defineCorePlugin({
         VIEW = constants?.Permissions?.VIEW_CHANNEL;
         const types = findByProps("ChannelTypes")?.ChannelTypes ?? {};
         skipTypes = [types.DM, types.GROUP_DM, types.GUILD_CATEGORY].filter((t: any) => t != null);
+        hiddenState.permissionCheck = !!permissions?.can && VIEW != null;
         if (!permissions?.can || VIEW == null) {
             console.error("[Hidden Channels] Couldn't find Discord's permission check");
             return;
@@ -93,6 +97,7 @@ export default defineCorePlugin({
         const fetchers = [findByProps("fetchMessages", "sendMessage"), findByProps("stores", "fetchMessages")];
         for (const fetcher of new Set(fetchers.filter(Boolean))) {
             if (typeof fetcher.fetchMessages !== "function") continue;
+            hiddenState.messageFetchers++;
             undo.push(instead("fetchMessages", fetcher, (args: any[], orig: Function) => {
                 const id = args[0]?.channelId ?? args[0];
                 if (isHidden(channelOf(id))) return Promise.resolve();
@@ -111,6 +116,7 @@ export default defineCorePlugin({
                 return orig(...args);
             }));
             replacedScreen = true;
+            hiddenState.chatScreen = name;
             break;
         }
         if (!replacedScreen) console.error("[Hidden Channels] Couldn't find the chat screen; hidden channels open empty");

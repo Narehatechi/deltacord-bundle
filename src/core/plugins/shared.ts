@@ -30,13 +30,20 @@ export function rewriteLinks(text: string, fn: (url: string) => string): string 
  * Discord's details about it) and the channel id, and edits it in place.
  * Returns how to undo it.
  */
+/** How many sent messages went through Deltacord's changes (for Doctor's self-test). */
+export const sendStats = { sent: 0, failed: 0 };
+
 export function onSend(transform: (message: any, channelId: string) => void): () => void {
     if (typeof messageUtil?.sendMessage !== "function") return () => { };
     return before("sendMessage", messageUtil, (args: any[]) => {
         try {
             const message = args[1];
-            if (message && typeof message.content === "string") transform(message, args[0]);
+            if (message && typeof message.content === "string") {
+                sendStats.sent++;
+                transform(message, args[0]);
+            }
         } catch (e) {
+            sendStats.failed++;
             console.error("[Deltacord] A message change failed; sending as typed", e);
         }
     });
