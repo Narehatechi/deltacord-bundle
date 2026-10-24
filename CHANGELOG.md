@@ -1,3 +1,10 @@
+## [1.11.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.0...v1.11.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* keep every feature on, even after a stuck launch ([ab6cee1](https://github.com/Narehatechi/deltacord-bundle/commit/ab6cee1c83c699676197d3f0268c23e3be1cd4b8))
+
 # [1.11.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.10.0...v1.11.0) (2026-10-24)
 
 
