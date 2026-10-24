@@ -1,3 +1,10 @@
+## [1.9.4](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.3...v1.9.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* applying a dark Deltacord theme no longer recreates Discord's screen ([ed4a632](https://github.com/Narehatechi/deltacord-bundle/commit/ed4a632c9a2c15563291ecfce961a0a3f62db873))
+
 ## [1.9.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.2...v1.9.3) (2026-10-23)
 
 
