@@ -105,9 +105,13 @@ async function decideMinimal() {
             try {
                 await fm.removeFile?.("documents", STUCK_FLAG);
             } catch { }
+            let retries = 0;
+            try {
+                if (await fm.fileExists(path)) retries = Number(JSON.parse(await fm.readFile(path, "utf8"))?.retries ?? 0);
+            } catch { }
             stuckLaunch = previous;
             minimal = true;
-            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch }), "utf8");
+            await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ since: Date.now(), stuckLaunch, retries }), "utf8");
             return;
         }
         if (previous && !previous.opened) {
@@ -118,8 +122,23 @@ async function decideMinimal() {
             return;
         }
         if (await fm.fileExists(path)) {
+            const saved = JSON.parse(await fm.readFile(path, "utf8")) ?? {};
+            stuckLaunch = saved.stuckLaunch ?? null;
+            const retries = Number(saved.retries ?? 0);
+            // The last (minimal) launch opened fine: try the full startup again on its own. If that
+            // gets stuck, the stuck flag brings minimal back; after two tries it stays minimal until
+            // you choose "Try full startup again".
+            if (previous?.minimal && previous.uiReady && retries < 2) {
+                minimal = false;
+                await fm.writeFile("documents", MINIMAL_FILE, JSON.stringify({ ...saved, retries: retries + 1, retrying: true }), "utf8");
+                return;
+            }
+            if (saved.retrying && previous && !previous.minimal && previous.uiReady) {
+                // The retried full startup worked: minimal startup is over.
+                await fm.removeFile?.("documents", MINIMAL_FILE);
+                return;
+            }
             minimal = true;
-            stuckLaunch = JSON.parse(await fm.readFile(path, "utf8"))?.stuckLaunch ?? null;
         }
     } catch {
         // Can't tell: keep it simple and start minimal only if the last launch froze.
