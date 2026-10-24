@@ -1,3 +1,10 @@
+## [1.9.6](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.5...v1.9.6) (2026-10-24)
+
+
+### Bug Fixes
+
+* no font reload prompt at startup ([66f2d11](https://github.com/Narehatechi/deltacord-bundle/commit/66f2d118b6502d4e29107df9eca6169bebb3aecd))
+
 ## [1.9.5](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.4...v1.9.5) (2026-10-24)
 
 
