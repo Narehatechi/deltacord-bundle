@@ -1,3 +1,10 @@
+## [1.11.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.1...v1.11.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* switch off the Safe Mode older builds turned on by themselves ([3fe28c3](https://github.com/Narehatechi/deltacord-bundle/commit/3fe28c33b9ea14aae4d3517eee5694960a530a1e))
+
 ## [1.11.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.11.0...v1.11.1) (2026-10-24)
 
 
