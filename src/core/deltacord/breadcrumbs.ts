@@ -219,11 +219,13 @@ async function decideFeatures(version: string) {
         if (await fm.fileExists(`${docs}/${OLD_MINIMAL_FILE}`)) await fm.removeFile?.("documents", OLD_MINIMAL_FILE);
     } catch { }
 
+    // Everything is always on. A stuck launch is still noticed (so its report can be copied), but
+    // no feature is switched off because of it, and any left off by older builds comes back on.
     const result = nextFeatureState(state, previous, stuckFlag, version);
-    state = result.state;
     stuckJustNow = result.stuck;
-    foundJustNow = result.found;
-    stuckLaunch = state.stuckLaunch ?? null;
+    foundJustNow = null;
+    stuckLaunch = result.stuck ? previous : null;
+    state = { probing: false, on: [], trying: null, culprits: [] };
     await saveState();
 }
 

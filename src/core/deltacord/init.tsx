@@ -13,7 +13,7 @@ import { settings } from "@lib/api/settings";
 
 import { autoBackupIfDue } from "./backup";
 import { disableSuspect, initCrashGuard, takeCrashNotice } from "./crashguard";
-import { culpritFoundNow, FEATURE_NAMES, FEATURES, isFeatureOn, markReady, stuckLastTime, stuckReportText } from "./breadcrumbs";
+import { culpritFoundNow, isFeatureOn, markReady, stuckLastTime, stuckReportText } from "./breadcrumbs";
 import { initExtras } from "./extras";
 import { markGuardDecided, startingInSafeMode } from "./safeModeGate";
 import { ensureThemeFontAtStartup } from "./themeFont";
@@ -82,16 +82,13 @@ async function showCrashNotice() {
 
 function explainStuckLaunch() {
     const found = culpritFoundNow();
-    const off = FEATURES.filter(f => !isFeatureOn(f)).map(f => FEATURE_NAMES[f]);
     const copy = async () => {
         try {
             clipboard.setString(await stuckReportText());
             showToast("Report copied", findAssetId("CopyIcon"));
         } catch { }
     };
-    const content = found
-        ? `Found it: "${FEATURE_NAMES[found]}" got Discord stuck while starting, so it's off for now and everything else is back on. Copy the report and send it so it can be fixed; the fix will turn it back on.`
-        : `Discord got stuck while starting last time, so this launch started with some of Deltacord off (${off.join(", ")}). Deltacord turns them back on one per launch to find the one causing it; just keep using Discord.\n\nCopy the report and send it so it can be fixed.`;
+    const content = "Discord got stuck while starting last time. Everything is still on. Copy the report and send it so it can be fixed.";
     openAlert(
         "deltacord-stuck-launch",
         <AlertModal
