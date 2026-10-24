@@ -92,16 +92,14 @@ export function promptReload(reason?: string) {
 }
 
 /**
- * At startup: if a Deltacord theme is already on but its font isn't yet (first launch after this
- * update, or the very first launch), set it up and offer one reload so it shows straight away.
+ * At startup: keep the saved font in step with the theme (no prompt; the patched app applies
+ * Determination itself as Discord starts).
  */
 export async function ensureThemeFontAtStartup(currentThemeId: string | null | undefined) {
     try {
-        const changed = await syncThemeFont(currentThemeId, { quiet: true });
-        if (changed && isBuiltinTheme(currentThemeId) && !extrasSettings.themeFontPrompted) {
-            extrasSettings.themeFontPrompted = true;
-            promptReload("Deltacord's themes now come with the Determination font. Reload to see it? (You can turn this off in Deltacord > Extras.)");
-        }
+        // Just keep the saved font in step with the theme. The patched app already starts Discord
+        // with Determination when one of Deltacord's themes is on, so there's nothing to reload.
+        await syncThemeFont(currentThemeId, { quiet: true });
     } catch (e) {
         console.error("[Deltacord] Couldn't set up the theme font", e);
     }
