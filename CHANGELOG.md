@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.6...v1.10.0) (2026-10-24)
+
+
+### Features
+
+* one-tap report after a stuck launch ([10e77f7](https://github.com/Narehatechi/deltacord-bundle/commit/10e77f79ab07bf585a1a41a3af6b89e635b6a5c4))
+
 ## [1.9.6](https://github.com/Narehatechi/deltacord-bundle/compare/v1.9.5...v1.9.6) (2026-10-24)
 
 
