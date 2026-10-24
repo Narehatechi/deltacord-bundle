@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.14.0...v1.15.0) (2026-10-24)
+
+
+### Features
+
+* eight more built-in plugins ([0476180](https://github.com/Narehatechi/deltacord-bundle/commit/0476180cd6ffedaeaebac4e6fd5e0c280ee895b2))
+
 # [1.14.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.13.0...v1.14.0) (2026-10-24)
 
 
