@@ -27,6 +27,34 @@ const SHARDS = [
     { x: 75, y: -50, r: 240 }, { x: -55, y: 10, r: 120 }, { x: 60, y: 20, r: -200 },
 ];
 
+/** A pixel heart, drawn square by square (X = filled). */
+const HEART = [
+    ".XXX...XXX.",
+    "XXXXX.XXXXX",
+    "XXXXXXXXXXX",
+    "XXXXXXXXXXX",
+    ".XXXXXXXXX.",
+    "..XXXXXXX..",
+    "...XXXXX...",
+    "....XXX....",
+    ".....X.....",
+];
+/** Where the crack runs on each row: squares left of this column are the left half. */
+const CRACK = [5, 6, 5, 4, 5, 6, 5, 4, 5];
+
+function PixelHeart({ pixel, part = "whole" }: { pixel: number; part?: "whole" | "left" | "right"; }) {
+    const squares: any[] = [];
+    HEART.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+            if (row[x] !== "X") continue;
+            const left = x < CRACK[y];
+            if ((part === "left" && !left) || (part === "right" && left)) continue;
+            squares.push(<View key={`${x},${y}`} style={{ position: "absolute", left: x * pixel, top: y * pixel, width: pixel, height: pixel, backgroundColor: RED }} />);
+        }
+    });
+    return <View style={{ width: HEART[0].length * pixel, height: HEART.length * pixel }}>{squares}</View>;
+}
+
 /** The SOUL: beats, cracks in two, then bursts into shards that fall away. */
 function Soul({ onShattered }: { onShattered: () => void; }) {
     const beat = useRef(new Animated.Value(1)).current;
@@ -59,32 +87,31 @@ function Soul({ onShattered }: { onShattered: () => void; }) {
         });
     }, []);
 
-    const heart = (style: any) => <Text style={[{ color: RED, fontSize: 64, lineHeight: 72, fontFamily: FONT_BOLD }, style]}>♥</Text>;
+    const PIXEL = 7;
     const shakeX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-3, 3] });
 
     return (
         <View style={{ height: 120, alignItems: "center", justifyContent: "center" }}>
-            {stage === "whole" && <Animated.View style={{ transform: [{ scale: beat }] }}>{heart(null)}</Animated.View>}
+            {stage === "whole" && <Animated.View style={{ transform: [{ scale: beat }] }}><PixelHeart pixel={PIXEL} /></Animated.View>}
             {stage === "cracked" && (
-                <Animated.View style={{ flexDirection: "row", transform: [{ translateX: shakeX }] }}>
-                    {/* The two halves of the heart, pulled apart by the crack. */}
+                <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
+                    {/* The two halves of the heart, pulled apart along the crack. */}
                     <Animated.View style={{
-                        width: 32, overflow: "hidden",
                         transform: [
-                            { translateX: crack.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
+                            { translateX: crack.interpolate({ inputRange: [0, 1], outputRange: [0, -PIXEL] }) },
                             { rotate: crack.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "-8deg"] }) },
                         ],
                     }}>
-                        {heart({ width: 64, textAlign: "center" })}
+                        <PixelHeart pixel={PIXEL} part="left" />
                     </Animated.View>
                     <Animated.View style={{
-                        width: 32, overflow: "hidden",
+                        position: "absolute",
                         transform: [
-                            { translateX: crack.interpolate({ inputRange: [0, 1], outputRange: [0, 5] }) },
+                            { translateX: crack.interpolate({ inputRange: [0, 1], outputRange: [0, PIXEL] }) },
                             { rotate: crack.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "8deg"] }) },
                         ],
                     }}>
-                        {heart({ width: 64, textAlign: "center", marginLeft: -32 })}
+                        <PixelHeart pixel={PIXEL} part="right" />
                     </Animated.View>
                 </Animated.View>
             )}
@@ -93,8 +120,8 @@ function Soul({ onShattered }: { onShattered: () => void; }) {
                     key={i}
                     style={{
                         position: "absolute",
-                        width: 10,
-                        height: 10,
+                        width: PIXEL * 2,
+                        height: PIXEL * 2,
                         backgroundColor: RED,
                         opacity: burst.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] }),
                         transform: [
@@ -155,7 +182,7 @@ function Menu({ choices }: { choices: Choice[]; }) {
                     onPress={choice.act}
                     style={{ flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingHorizontal: 4 }}
                 >
-                    <Text style={{ color: RED, fontSize: 18, width: 22, fontFamily: FONT_BOLD, opacity: selected === i ? 1 : 0 }}>♥</Text>
+                    <View style={{ width: 24, opacity: selected === i ? 1 : 0 }}><PixelHeart pixel={2} /></View>
                     <Text style={{ color: selected === i ? YELLOW : WHITE, fontSize: 18, letterSpacing: 1, fontFamily: FONT_BOLD }}>
                         {choice.label.toUpperCase()}
                     </Text>
