@@ -1,3 +1,10 @@
+## [1.27.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.1...v1.27.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* your own messages type out in your voice ([78f05ba](https://github.com/Narehatechi/deltacord-bundle/commit/78f05ba7939265a799808574e021001478e10bae))
+
 ## [1.27.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.0...v1.27.1) (2026-10-25)
 
 
