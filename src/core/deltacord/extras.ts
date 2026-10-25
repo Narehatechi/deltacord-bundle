@@ -70,7 +70,75 @@ function prepareSource(source: string): Promise<boolean> {
     return prepared.get(source)!;
 }
 
-async function playSource(source: string): Promise<boolean> {
+// Fast path: the Deltacord module's SoundPool (almost no delay; works for a sound per letter).
+const fastIds = new Map<string, Promise<number | null>>();
+/** Whether the fast sound player worked last time (null: not tried yet). For Doctor. */
+export const soundStatus = { fast: null as boolean | null, error: "" };
+
+const hashOf = (text: string) => {
+    let h = 0;
+    for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+};
+
+/** A sound as a file on the phone (links are downloaded once and kept). */
+async function localFile(source: string): Promise<string> {
+    if (source.startsWith("file://")) return source.slice(7);
+    if (source.startsWith("/")) return source;
+    const ext = (/\.(wav|mp3|ogg)(\?|$)/i.exec(source)?.[1] ?? "wav").toLowerCase();
+    const relative = `pyoncord/${CUSTOM_SOUND_DIR}/cache-${hashOf(source)}.${ext}`;
+    const full = `${NativeFileModule.getConstants().DocumentsDirPath}/${relative}`;
+    if (!await NativeFileModule.fileExists(full)) {
+        const bytes = await download(source);
+        await NativeFileModule.writeFile("documents", relative, toBase64(bytes), "base64");
+    }
+    return full;
+}
+
+function fastId(source: string): Promise<number | null> {
+    if (!fastIds.has(source)) {
+        fastIds.set(source, (async () => {
+            try {
+                const { callNative } = require("@lib/api/native/bridge");
+                const id = await callNative("deltacord.sound.load", await localFile(source));
+                soundStatus.fast = typeof id === "number";
+                return typeof id === "number" ? id : null;
+            } catch (e: any) {
+                soundStatus.fast = false;
+                soundStatus.error = String(e?.message ?? e).slice(0, 120);
+                console.warn("[Deltacord] Fast sound unavailable, using Discord's player", e);
+                return null;
+            }
+        })());
+    }
+    return fastIds.get(source)!;
+}
+
+/** Gets a sound ready ahead of time, so the first play has no delay. */
+export const preloadSound = (source: string) => void fastId(source);
+
+/** Which sound player is used (for Doctor). */
+export async function soundPlayerFor(source: string): Promise<"fast" | "discord"> {
+    return (await fastId(source)) != null ? "fast" : "discord";
+}
+
+async function playSource(source: string, volume = 1): Promise<boolean> {
+    const id = await fastId(source);
+    if (id != null) {
+        try {
+            const bridge = require("@lib/api/native/bridge");
+            try {
+                bridge.callNativeSync("deltacord.sound.play", id, volume);
+            } catch {
+                await bridge.callNative("deltacord.sound.play", id, volume);
+            }
+            return true;
+        } catch { }
+    }
+    return playDiscord(source);
+}
+
+async function playDiscord(source: string): Promise<boolean> {
     try {
         if (!await prepareSource(source)) return false;
         const manager = SoundManager();
@@ -129,7 +197,7 @@ export async function setCustomSaveSound(url: string) {
 }
 
 /** Plays a sound from a link or a file:// path (Discord's sound player). */
-export const playSoundSource = (source: string) => playSource(source);
+export const playSoundSource = (source: string, volume = 1) => playSource(source, volume);
 /** Deltacord's own sounds (blip.wav, blip-low.wav, save.wav). */
 export const builtinSound = (file: string) => `${SOUNDS}/${file}`;
 

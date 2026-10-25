@@ -18,7 +18,7 @@ import { FluxDispatcher } from "@metro/common";
 import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
 import { findByName, findByStoreNameLazy } from "@metro/wrappers";
 import { useState } from "react";
-import { ScrollView } from "react-native";
+import { processColor, ScrollView } from "react-native";
 
 import { defineCorePlugin } from "..";
 import { all } from "../shared";
@@ -43,7 +43,7 @@ const MAX_DURATION = 4500;
 const REDRAW_FLAG = 0x10000000;
 const TICK = 33;
 /** At most one sound this often (ms), like the game's text voice. */
-const SOUND_GAP = 55;
+const SOUND_GAP = 45;
 
 interface Typing {
     channelId: string;
@@ -92,6 +92,72 @@ function countNodes(nodes: any[]): number {
     return n;
 }
 
+/** Parsed message nodes split after `count` characters: [shown, still to come]. */
+export function splitNodes(nodes: any[], count: number): [any[], any[]] {
+    const head: any[] = [];
+    const tail: any[] = [];
+    let left = count;
+    for (const node of nodes) {
+        if (left <= 0) {
+            tail.push(node);
+            continue;
+        }
+        if (typeof node === "string") {
+            head.push(node.slice(0, left));
+            if (node.length > left) tail.push(node.slice(left));
+            left -= Math.min(left, node.length);
+        } else if (typeof node?.content === "string") {
+            head.push({ ...node, content: node.content.slice(0, left) });
+            if (node.content.length > left) tail.push({ ...node, content: node.content.slice(left) });
+            left -= Math.min(left, node.content.length);
+        } else if (Array.isArray(node?.content)) {
+            const innerCount = countNodes(node.content);
+            if (innerCount <= left) {
+                head.push(node);
+                left -= innerCount;
+            } else {
+                const [a, b] = splitNodes(node.content, left);
+                head.push({ ...node, content: a });
+                tail.push({ ...node, content: b });
+                left = 0;
+            }
+        } else {
+            head.push(node);
+            left -= 1;
+        }
+    }
+    return [head, tail];
+}
+
+const INLINE = new Set(["text", "strong", "em", "u", "s", "inlineCode", "link", "spoiler", "mention", "channel"]);
+
+/** Wraps nodes in a see-through link node: they still take up their space, so nothing jumps. */
+function invisible(nodes: any[]): any[] {
+    const clear = processColor("#00000000") as unknown as number;
+    const out: any[] = [];
+    let run: any[] = [];
+    const flush = () => {
+        if (!run.length) return;
+        out.push({
+            type: "link",
+            target: "usernameOnClick",
+            context: { username: "", usernameOnClick: { action: "0", userId: "0", linkColor: clear, messageChannelId: "0" } },
+            content: run,
+        });
+        run = [];
+    };
+    for (const node of nodes) {
+        if (typeof node === "string") run.push({ type: "text", content: node });
+        else if (node && INLINE.has(node.type)) run.push(node);
+        else {
+            // Emoji and other pictures can't be made see-through; they appear with their turn.
+            flush();
+        }
+    }
+    flush();
+    return out;
+}
+
 /** The first `count` characters of parsed message nodes. */
 export function truncateNodes(nodes: any[], count: number): [any[], number] {
     const out: any[] = [];
@@ -134,9 +200,8 @@ function playVoice() {
     if (now - lastSound < SOUND_GAP) return;
     lastSound = now;
     try {
-        const extras = require("@core/deltacord/extras");
-        const source = store.soundFile ?? store.soundUrl ?? extras.builtinSound("blip.wav");
-        void extras.playSoundSource(source);
+        const source = voiceSource();
+        if (source) void require("@core/deltacord/extras").playSoundSource(source);
     } catch { }
 }
 
@@ -172,6 +237,14 @@ function startTyping(message: any, guildId?: string) {
     ticker ??= setInterval(tick, TICK);
 }
 
+function voiceSource(): string | undefined {
+    try {
+        return store.soundFile ?? store.soundUrl ?? require("@core/deltacord/extras").builtinSound("blip.wav");
+    } catch {
+        return undefined;
+    }
+}
+
 /** While a message is typing, its row shows only the letters revealed so far. */
 function patchRows() {
     let RowManager = findByName("RowManager");
@@ -188,8 +261,10 @@ function patchRows() {
             if (!t || !Array.isArray(message.content)) return;
             const fraction = t.times.length ? t.revealed / t.times.length : 1;
             const total = countNodes(message.content);
-            const [shown] = truncateNodes(message.content, Math.max(0, Math.round(total * fraction)));
-            message.content = shown;
+            // The letters still to come are drawn see-through, so the message keeps its full
+            // size from the start and the chat doesn't jump around as it types.
+            const [shown, rest] = splitNodes(message.content, Math.max(0, Math.round(total * fraction)));
+            message.content = [...shown, ...invisible(rest)];
         } catch { }
     });
 }
@@ -269,6 +344,9 @@ export default defineCorePlugin({
         authors: [{ name: "Deltacord" }],
     },
     start() {
+        // Load the text sound now, so the first letter isn't silent.
+        const source = voiceSource();
+        if (source) require("@core/deltacord/extras").preloadSound(source);
         undo = all(
             patchRows(),
             intercept(payload => {

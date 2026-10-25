@@ -80,7 +80,12 @@ const NEEDS: Record<string, Array<[string, () => boolean | string]>> = {
     "deltacord.textreplace": [["Sending messages", () => fn(messageUtil, "sendMessage")]],
     "deltacord.typewriter": [
         ["Chat row builder (RowManager)", () => fn(findByName("RowManager")?.prototype, "generate") || fn(findByName("RowManager", false)?.default?.prototype, "generate")],
-        ["Sound player", () => !!require("react-native").NativeModules?.DCDSoundManager?.play],
+        ["Sound player", () => {
+            const { soundStatus } = require("@core/deltacord/extras");
+            if (soundStatus.fast === true) return "fast (Deltacord module)";
+            if (soundStatus.fast === false) return `Discord's player; fast one failed: ${soundStatus.error || "unknown"}`;
+            return "not used yet (tap Test the sound in Typewriter)";
+        }],
         ["Message events", () => fluxStats.dispatches > 0],
     ],
 };
