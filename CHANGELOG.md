@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.21.0...v1.22.0) (2026-10-25)
+
+
+### Features
+
+* smoother Typewriter with a working text sound ([380d7c6](https://github.com/Narehatechi/deltacord-bundle/commit/380d7c6e7fa59d75fba5ab226efe47c0eb20743c))
+
 # [1.21.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.20.0...v1.21.0) (2026-10-25)
 
 
