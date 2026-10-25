@@ -128,6 +128,34 @@ export async function setCustomSaveSound(url: string) {
     await playSave();
 }
 
+/** Plays a sound from a link or a file:// path (Discord's sound player). */
+export const playSoundSource = (source: string) => playSource(source);
+/** Deltacord's own sounds (blip.wav, blip-low.wav, save.wav). */
+export const builtinSound = (file: string) => `${SOUNDS}/${file}`;
+
+/** Downloads a short sound once and keeps it on the phone; returns its file:// path. */
+export async function downloadSound(url: string, prefix: string): Promise<string> {
+    url = url.trim();
+    if (!/^https:\/\//i.test(url)) throw new Error("That needs to be a link starting with https://");
+    const bytes = await download(url);
+    if (bytes.length > 2 * 1024 * 1024) throw new Error("That sound is over 2 MB; it should be short");
+    const type = sniffType(bytes, "");
+    if (!type.startsWith("audio/")) throw new Error("That link isn't a WAV, MP3 or OGG sound");
+    const ext = type === "audio/wav" ? "wav" : type === "audio/ogg" ? "ogg" : "mp3";
+    const name = `${prefix}-${Date.now().toString(36)}.${ext}`;
+    await NativeFileModule.writeFile("documents", `pyoncord/${CUSTOM_SOUND_DIR}/${name}`, toBase64(bytes), "base64");
+    return `file://${NativeFileModule.getConstants().DocumentsDirPath}/pyoncord/${CUSTOM_SOUND_DIR}/${name}`;
+}
+
+/** Deletes a sound saved by downloadSound. */
+export function removeSoundFile(file: string | null | undefined) {
+    const marker = `/pyoncord/${CUSTOM_SOUND_DIR}/`;
+    if (!file?.includes(marker)) return;
+    try {
+        NativeFileModule.removeFile?.("documents", `pyoncord/${CUSTOM_SOUND_DIR}/${file.split(marker)[1]}`)?.catch?.(() => { });
+    } catch { }
+}
+
 function removeCustomSoundFile() {
     const file = extrasSettings.saveSoundFile;
     const marker = `/pyoncord/${CUSTOM_SOUND_DIR}/`;

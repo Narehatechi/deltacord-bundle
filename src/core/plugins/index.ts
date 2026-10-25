@@ -26,6 +26,7 @@ export const getCorePlugins = (): Record<string, CorePlugin> => ({
     "deltacord.reminders": require("./reminders"),
     "deltacord.keywords": require("./keywords"),
     "deltacord.textreplace": require("./textreplace"),
+    "deltacord.typewriter": require("./typewriter"),
 });
 
 /**

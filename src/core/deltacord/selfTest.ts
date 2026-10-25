@@ -78,6 +78,11 @@ const NEEDS: Record<string, Array<[string, () => boolean | string]>> = {
     "deltacord.reminders": [["Slash commands added", () => commands("remind", "reminders", "reminders-clear")]],
     "deltacord.keywords": [["Message events", () => fluxStats.dispatches > 0]],
     "deltacord.textreplace": [["Sending messages", () => fn(messageUtil, "sendMessage")]],
+    "deltacord.typewriter": [
+        ["Chat row builder (RowManager)", () => fn(findByName("RowManager")?.prototype, "generate") || fn(findByName("RowManager", false)?.default?.prototype, "generate")],
+        ["Sound player", () => !!require("react-native").NativeModules?.DCDSoundManager?.play],
+        ["Message events", () => fluxStats.dispatches > 0],
+    ],
 };
 
 /** Which of these slash commands are registered; false if any is missing. */
