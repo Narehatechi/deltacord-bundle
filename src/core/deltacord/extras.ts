@@ -122,15 +122,15 @@ export async function soundPlayerFor(source: string): Promise<"fast" | "discord"
     return (await fastId(source)) != null ? "fast" : "discord";
 }
 
-async function playSource(source: string, volume = 1): Promise<boolean> {
+async function playSource(source: string, volume = 1, rate = 1): Promise<boolean> {
     const id = await fastId(source);
     if (id != null) {
         try {
             const bridge = require("@lib/api/native/bridge");
             try {
-                bridge.callNativeSync("deltacord.sound.play", id, volume);
+                bridge.callNativeSync("deltacord.sound.play", id, volume, rate);
             } catch {
-                await bridge.callNative("deltacord.sound.play", id, volume);
+                await bridge.callNative("deltacord.sound.play", id, volume, rate);
             }
             return true;
         } catch { }
@@ -197,7 +197,7 @@ export async function setCustomSaveSound(url: string) {
 }
 
 /** Plays a sound from a link or a file:// path (Discord's sound player). */
-export const playSoundSource = (source: string, volume = 1) => playSource(source, volume);
+export const playSoundSource = (source: string, volume = 1, rate = 1) => playSource(source, volume, rate);
 /** Deltacord's own sounds (blip.wav, blip-low.wav, save.wav). */
 export const builtinSound = (file: string) => `${SOUNDS}/${file}`;
 

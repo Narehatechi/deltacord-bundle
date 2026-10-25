@@ -15,13 +15,14 @@ import { intercept } from "@lib/api/flux";
 import { after } from "@lib/api/patcher";
 import { showToast } from "@lib/ui/toasts";
 import { FluxDispatcher } from "@metro/common";
-import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
+import { AlertActionButton, AlertActions, AlertModal, Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
+import { openAlert } from "@lib/ui/alerts";
 import { findByName, findByStoreNameLazy } from "@metro/wrappers";
 import { useState } from "react";
 import { processColor, ScrollView } from "react-native";
 
 import { defineCorePlugin } from "..";
-import { all } from "../shared";
+import { all, option, registerCommands, reply } from "../shared";
 
 const MessageStore = findByStoreNameLazy("MessageStore");
 const UserStore = findByStoreNameLazy("UserStore");
@@ -34,6 +35,17 @@ interface TypewriterSettings {
     own?: boolean;
     soundUrl?: string | null;
     soundFile?: string | null;
+    /** Each person's own voice: a sound and/or a pitch, by user id. */
+    voices?: Record<string, Voice>;
+}
+
+export interface Voice {
+    /** Their name when the voice was set (for the settings list). */
+    name: string;
+    soundUrl?: string | null;
+    soundFile?: string | null;
+    /** 0.5 (low) to 2 (high); 1 is normal. */
+    pitch?: number;
 }
 const store = wrapSync(createStorage<TypewriterSettings>(createMMKVBackend("DELTACORD_TYPEWRITER")));
 
@@ -47,6 +59,7 @@ const SOUND_GAP = 45;
 
 interface Typing {
     channelId: string;
+    authorId?: string;
     guildId?: string;
     start: number;
     /** When each character of the text appears (ms after start). */
@@ -194,16 +207,56 @@ function redraw(channelId: string, id: string, guildId?: string) {
     } catch { }
 }
 
-function playVoice() {
+/** The voice for a person: theirs if you set one, otherwise the default. */
+export function voiceFor(userId?: string): { source?: string; pitch: number; } {
+    const voice = userId ? store.voices?.[userId] : undefined;
+    return {
+        source: voice?.soundFile ?? voice?.soundUrl ?? voiceSource(),
+        pitch: Math.min(2, Math.max(0.5, voice?.pitch ?? 1)),
+    };
+}
+
+function playVoice(userId?: string) {
     if (store.sound === false) return;
     const now = Date.now();
     if (now - lastSound < SOUND_GAP) return;
     lastSound = now;
     try {
-        const source = voiceSource();
-        if (source) void require("@core/deltacord/extras").playSoundSource(source);
+        const { source, pitch } = voiceFor(userId);
+        if (source) void require("@core/deltacord/extras").playSoundSource(source, 1, pitch);
     } catch { }
 }
+
+/** Sets (or changes) a person's voice. A link is downloaded once and kept on the phone. */
+async function setVoice(userId: string, name: string, link?: string, pitch?: number) {
+    const voices = { ...(store.voices ?? {}) };
+    const voice: Voice = { ...(voices[userId] ?? {}), name };
+    if (link?.trim()) {
+        const extras = require("@core/deltacord/extras");
+        const file = await extras.downloadSound(link, `voice-${userId}`);
+        extras.removeSoundFile(voice.soundFile);
+        voice.soundFile = file;
+        voice.soundUrl = link.trim();
+        extras.preloadSound(file);
+    }
+    if (pitch != null && isFinite(pitch)) voice.pitch = Math.min(2, Math.max(0.5, pitch));
+    voices[userId] = voice;
+    store.voices = voices;
+    return voice;
+}
+
+function removeVoice(userId: string) {
+    const voices = { ...(store.voices ?? {}) };
+    const voice = voices[userId];
+    if (!voice) return false;
+    require("@core/deltacord/extras").removeSoundFile(voice.soundFile);
+    delete voices[userId];
+    store.voices = voices;
+    return true;
+}
+
+const describeVoice = (v: Voice) =>
+    `${v.soundUrl ? "own sound" : "default sound"}${v.pitch && v.pitch !== 1 ? `, pitch ${v.pitch}` : ""}`;
 
 function tick() {
     const now = Date.now();
@@ -213,7 +266,7 @@ function tick() {
         const n = revealedAt(t.times, now - t.start);
         if (n === t.revealed) continue;
         // A letter (not just spaces) appeared: the text voice.
-        if (text.slice(t.revealed, n).trim()) playVoice();
+        if (text.slice(t.revealed, n).trim()) playVoice(t.authorId);
         t.revealed = n;
         if (n >= t.times.length) typing.delete(id);
         redraw(t.channelId, id, t.guildId);
@@ -229,6 +282,7 @@ function startTyping(message: any, guildId?: string) {
     if (!message?.id || !text.trim()) return;
     typing.set(message.id, {
         channelId: message.channel_id,
+        authorId: message.author?.id,
         guildId,
         start: Date.now(),
         times: schedule(text, SPEEDS[store.speed ?? "normal"] ?? SPEEDS.normal),
@@ -325,6 +379,39 @@ function TypewriterSettingsPage() {
                         store.soundUrl = null;
                     }} />
                 ) : null}
+                <TableRowGroup title={`Voices for people (${Object.keys(store.voices ?? {}).length})`}>
+                    {Object.keys(store.voices ?? {}).length
+                        ? Object.entries(store.voices ?? {}).map(([id, v]) => (
+                            <TableRow
+                                key={id}
+                                label={UserStore.getUser?.(id)?.globalName ?? UserStore.getUser?.(id)?.username ?? v.name}
+                                subLabel={`${describeVoice(v)} · tap for options`}
+                                onPress={() => {
+                                    lastSound = 0;
+                                    playVoice(id);
+                                    openAlert("deltacord-typewriter-voice", <AlertModal
+                                        title={`${v.name}'s voice`}
+                                        content={`${describeVoice(v)}. Change it with /voice.`}
+                                        actions={<AlertActions>
+                                            <AlertActionButton text="Play again" variant="secondary" onPress={() => {
+                                                lastSound = 0;
+                                                playVoice(id);
+                                            }} />
+                                            <AlertActionButton text="Remove" variant="destructive" onPress={() => {
+                                                removeVoice(id);
+                                                showToast(`Removed ${v.name}'s voice`);
+                                            }} />
+                                            <AlertActionButton text="Close" variant="secondary" />
+                                        </AlertActions>}
+                                    />);
+                                }}
+                            />
+                        ))
+                        : <TableRow label="Nobody yet" subLabel="In any chat, type /voice, pick a person, and add a sound link and/or a pitch." />}
+                </TableRowGroup>
+                <Text variant="text-xs/medium" color="text-muted">
+                    Give someone their own voice with /voice: a sound (link) and/or a pitch from 0.5 (low) to 2 (high). /voice-remove takes it away, /voices lists them.
+                </Text>
                 <Text variant="text-xs/medium" color="text-muted">
                     Only new messages in the chat you're looking at type out. The sound is downloaded once and kept on your phone, so a Discord attachment link works even after it expires.
                 </Text>
@@ -349,6 +436,55 @@ export default defineCorePlugin({
         if (source) require("@core/deltacord/extras").preloadSound(source);
         undo = all(
             patchRows(),
+            registerCommands([
+                {
+                    name: "voice",
+                    description: "Give someone their own Typewriter voice (only you hear it)",
+                    options: [
+                        { name: "user", displayName: "user", description: "Who", type: 6, required: true },
+                        { name: "sound", displayName: "sound", description: "Link to a short WAV, MP3 or OGG (optional)", type: 3 },
+                        { name: "pitch", displayName: "pitch", description: "0.5 (low) to 2 (high), 1 is normal (optional)", type: 10 },
+                    ],
+                    async execute(args: any[], ctx: any) {
+                        const userId = String(option(args, "user") ?? "");
+                        const link = option(args, "sound");
+                        const pitchRaw = option(args, "pitch");
+                        const pitch = pitchRaw == null ? undefined : Number(pitchRaw);
+                        if (!userId) return void reply(ctx.channel.id, "Pick someone.");
+                        if (!link && pitch == null) return void reply(ctx.channel.id, "Add a sound link, a pitch, or both.");
+                        const user = UserStore.getUser?.(userId);
+                        const name = user?.globalName ?? user?.username ?? "them";
+                        try {
+                            const voice = await setVoice(userId, name, link, pitch);
+                            reply(ctx.channel.id, `\u{1F50A} ${name} now sounds like: ${describeVoice(voice)}.`);
+                            lastSound = 0;
+                            playVoice(userId);
+                        } catch (e: any) {
+                            reply(ctx.channel.id, `Couldn't set that voice: ${e?.message ?? e}`);
+                        }
+                    },
+                },
+                {
+                    name: "voice-remove",
+                    description: "Put someone back on the default Typewriter voice",
+                    options: [{ name: "user", displayName: "user", description: "Who", type: 6, required: true }],
+                    execute(args: any[], ctx: any) {
+                        const userId = String(option(args, "user") ?? "");
+                        reply(ctx.channel.id, removeVoice(userId) ? "Back to the default voice." : "They didn't have their own voice.");
+                    },
+                },
+                {
+                    name: "voices",
+                    description: "List everyone's Typewriter voices",
+                    options: [],
+                    execute(_args: any[], ctx: any) {
+                        const entries = Object.entries(store.voices ?? {});
+                        reply(ctx.channel.id, entries.length
+                            ? `**Typewriter voices (${entries.length})**\n${entries.map(([id, v]) => `• ${UserStore.getUser?.(id)?.globalName ?? v.name}: ${describeVoice(v)}`).join("\n")}`
+                            : "Nobody has their own voice yet. Add one with /voice.");
+                    },
+                },
+            ]),
             intercept(payload => {
                 try {
                     if (payload.type !== "MESSAGE_CREATE" || payload.optimistic) return undefined;
