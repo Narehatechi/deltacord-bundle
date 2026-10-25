@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.24.0...v1.25.0) (2026-10-25)
+
+
+### Features
+
+* import Typewriter sounds from a file ([7054e9b](https://github.com/Narehatechi/deltacord-bundle/commit/7054e9b63d51594abf14018e58a1e797a0aac9c8))
+
 # [1.24.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.23.0...v1.24.0) (2026-10-25)
 
 
