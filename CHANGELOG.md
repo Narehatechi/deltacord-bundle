@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.26.0...v1.27.0) (2026-10-25)
+
+
+### Features
+
+* Typewriter pitch wobble and voices from the message menu; fix: readable profile-themed areas ([a1f41de](https://github.com/Narehatechi/deltacord-bundle/commit/a1f41deccdb3a439392b220a89a2e48e7c58862c))
+
 # [1.26.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.25.1...v1.26.0) (2026-10-25)
 
 
