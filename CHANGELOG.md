@@ -1,3 +1,10 @@
+## [1.27.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.0...v1.27.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* Typewriter voices playing again, including your own ([704658a](https://github.com/Narehatechi/deltacord-bundle/commit/704658a142406608b3ecf25648ff60076e817a2b))
+
 # [1.27.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.26.0...v1.27.0) (2026-10-25)
 
 
