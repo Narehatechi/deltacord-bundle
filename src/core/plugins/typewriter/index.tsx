@@ -35,6 +35,8 @@ interface TypewriterSettings {
     own?: boolean;
     soundUrl?: string | null;
     soundFile?: string | null;
+    /** The imported file's name (for the settings). */
+    soundName?: string | null;
     /** Each person's own voice: a sound and/or a pitch, by user id. */
     voices?: Record<string, Voice>;
 }
@@ -44,6 +46,7 @@ export interface Voice {
     name: string;
     soundUrl?: string | null;
     soundFile?: string | null;
+    soundName?: string | null;
     /** 0.5 (low) to 2 (high); 1 is normal. */
     pitch?: number;
 }
@@ -249,15 +252,23 @@ function playVoice(userId?: string) {
 }
 
 /** Sets (or changes) a person's voice. A link is downloaded once and kept on the phone. */
-async function setVoice(userId: string, name: string, link?: string, pitch?: number) {
+async function setVoice(userId: string, name: string, link?: string, pitch?: number, picked?: { file: string; name: string; } | null) {
     const voices = { ...(store.voices ?? {}) };
     const voice: Voice = { ...(voices[userId] ?? {}), name };
-    if (link?.trim()) {
+    if (picked) {
+        const extras = require("@core/deltacord/extras");
+        extras.removeSoundFile(voice.soundFile);
+        voice.soundFile = picked.file;
+        voice.soundName = picked.name;
+        voice.soundUrl = null;
+        extras.preloadSound(picked.file);
+    } else if (link?.trim()) {
         const extras = require("@core/deltacord/extras");
         const file = await extras.downloadSound(link, `voice-${userId}`);
         extras.removeSoundFile(voice.soundFile);
         voice.soundFile = file;
         voice.soundUrl = link.trim();
+        voice.soundName = null;
         extras.preloadSound(file);
     }
     if (pitch != null && isFinite(pitch)) voice.pitch = Math.min(2, Math.max(0.5, pitch));
@@ -277,7 +288,7 @@ function removeVoice(userId: string) {
 }
 
 const describeVoice = (v: Voice) =>
-    `${v.soundUrl ? "own sound" : "default sound"}${v.pitch && v.pitch !== 1 ? `, pitch ${v.pitch}` : ""}`;
+    `${v.soundName ? `sound "${v.soundName}"` : v.soundUrl ? "own sound" : "default sound"}${v.pitch && v.pitch !== 1 ? `, pitch ${v.pitch}` : ""}`;
 
 function tick() {
     const now = Date.now();
@@ -392,28 +403,29 @@ function TypewriterSettingsPage() {
                 </TableRowGroup>
                 <TableRowGroup title="Text sound">
                     <TableSwitchRow label="Play a sound while typing" value={store.sound !== false} onValueChange={(v: boolean) => void (store.sound = v)} />
-                    <TableRow label="Sound" subLabel={store.soundUrl ? store.soundUrl : "Deltacord's blip"} />
+                    <TableRow label="Sound" subLabel={store.soundName ?? store.soundUrl ?? "Deltacord's blip"} />
                     <TableRow label="Test the sound" onPress={() => {
                         lastSound = 0;
                         playVoice();
                     }} />
                 </TableRowGroup>
-                <TextInput label="Use your own sound (link to a short WAV, MP3 or OGG)" value={link} placeholder="https://…" onChange={setLink} />
                 <Button
-                    text={busy ? "Downloading…" : "Use this sound"}
-                    disabled={busy || !link.trim()}
+                    text={busy ? "Working…" : "Import a sound file"}
+                    disabled={busy}
                     onPress={async () => {
                         setBusy(true);
                         try {
                             const extras = require("@core/deltacord/extras");
-                            const file = await extras.downloadSound(link, "voice");
-                            extras.removeSoundFile(store.soundFile);
-                            store.soundFile = file;
-                            store.soundUrl = link.trim();
-                            setLink("");
-                            lastSound = 0;
-                            playVoice();
-                            showToast("Text sound saved");
+                            const picked = await extras.pickSound();
+                            if (picked) {
+                                extras.removeSoundFile(store.soundFile);
+                                store.soundFile = picked.file;
+                                store.soundName = picked.name;
+                                store.soundUrl = null;
+                                lastSound = 0;
+                                playVoice();
+                                showToast(`Text sound: ${picked.name}`);
+                            }
                         } catch (e: any) {
                             showToast(e?.message ?? String(e));
                         } finally {
@@ -421,11 +433,39 @@ function TypewriterSettingsPage() {
                         }
                     }}
                 />
-                {store.soundUrl ? (
+                <TextInput label="Or use a link" value={link} placeholder="https://…" onChange={setLink} />
+                {link.trim() ? (
+                    <Button
+                        text={busy ? "Downloading…" : "Use this link"}
+                        variant="secondary"
+                        disabled={busy}
+                        onPress={async () => {
+                            setBusy(true);
+                            try {
+                                const extras = require("@core/deltacord/extras");
+                                const file = await extras.downloadSound(link, "voice");
+                                extras.removeSoundFile(store.soundFile);
+                                store.soundFile = file;
+                                store.soundUrl = link.trim();
+                                store.soundName = null;
+                                setLink("");
+                                lastSound = 0;
+                                playVoice();
+                                showToast("Text sound saved");
+                            } catch (e: any) {
+                                showToast(e?.message ?? String(e));
+                            } finally {
+                                setBusy(false);
+                            }
+                        }}
+                    />
+                ) : null}
+                {store.soundFile || store.soundUrl ? (
                     <Button text="Back to Deltacord's blip" variant="secondary" onPress={() => {
                         require("@core/deltacord/extras").removeSoundFile(store.soundFile);
                         store.soundFile = null;
                         store.soundUrl = null;
+                        store.soundName = null;
                     }} />
                 ) : null}
                 <TableRowGroup title={`Voices for people (${Object.keys(store.voices ?? {}).length})`}>
@@ -445,6 +485,18 @@ function TypewriterSettingsPage() {
                                             <AlertActionButton text="Play again" variant="secondary" onPress={() => {
                                                 lastSound = 0;
                                                 playVoice(id);
+                                            }} />
+                                            <AlertActionButton text="Import a sound file" variant="secondary" onPress={async () => {
+                                                try {
+                                                    const picked = await require("@core/deltacord/extras").pickSound();
+                                                    if (!picked) return;
+                                                    await setVoice(id, v.name, undefined, undefined, picked);
+                                                    lastSound = 0;
+                                                    playVoice(id);
+                                                    showToast(`${v.name}: ${picked.name}`);
+                                                } catch (e: any) {
+                                                    showToast(e?.message ?? String(e));
+                                                }
                                             }} />
                                             <AlertActionButton text="Remove" variant="destructive" onPress={() => {
                                                 removeVoice(id);
@@ -491,7 +543,8 @@ export default defineCorePlugin({
                     description: "Give someone their own Typewriter voice (only you hear it)",
                     options: [
                         { name: "user", displayName: "user", description: "Who", type: 6, required: true },
-                        { name: "sound", displayName: "sound", description: "Link to a short WAV, MP3 or OGG (optional)", type: 3 },
+                        { name: "file", displayName: "file", description: "Pick a sound file from your phone", type: 5 },
+                        { name: "sound", displayName: "sound", description: "Or a link to a short WAV, MP3 or OGG", type: 3 },
                         { name: "pitch", displayName: "pitch", description: "0.5 (low) to 2 (high), 1 is normal (optional)", type: 10 },
                     ],
                     async execute(args: any[], ctx: any) {
@@ -500,11 +553,14 @@ export default defineCorePlugin({
                         const pitchRaw = option(args, "pitch");
                         const pitch = pitchRaw == null ? undefined : Number(pitchRaw);
                         if (!userId) return void reply(ctx.channel.id, "Pick someone.");
-                        if (!link && pitch == null) return void reply(ctx.channel.id, "Add a sound link, a pitch, or both.");
+                        const wantsFile = option(args, "file") === true;
+                        if (!wantsFile && !link && pitch == null) return void reply(ctx.channel.id, "Pick a sound file, add a link, or set a pitch.");
                         const user = UserStore.getUser?.(userId);
                         const name = user?.globalName ?? user?.username ?? "them";
                         try {
-                            const voice = await setVoice(userId, name, link, pitch);
+                            const picked = wantsFile ? await require("@core/deltacord/extras").pickSound() : null;
+                            if (wantsFile && !picked && pitch == null) return void reply(ctx.channel.id, "No file picked, so nothing changed.");
+                            const voice = await setVoice(userId, name, link, pitch, picked);
                             reply(ctx.channel.id, `\u{1F50A} ${name} now sounds like: ${describeVoice(voice)}.`);
                             lastSound = 0;
                             playVoice(userId);

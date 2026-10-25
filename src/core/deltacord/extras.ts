@@ -215,7 +215,31 @@ export async function downloadSound(url: string, prefix: string): Promise<string
     return `file://${NativeFileModule.getConstants().DocumentsDirPath}/pyoncord/${CUSTOM_SOUND_DIR}/${name}`;
 }
 
-/** Deletes a sound saved by downloadSound. */
+/**
+ * Lets you pick a sound file from your phone (Android's file picker) and keeps a copy for
+ * Deltacord. Returns its file:// path and name, or null if you backed out.
+ */
+export async function pickSound(): Promise<{ file: string; name: string; } | null> {
+    const { callNative } = require("@lib/api/native/bridge");
+    let picked: any;
+    try {
+        picked = await callNative("deltacord.files.pick", "audio/*", `pyoncord/${CUSTOM_SOUND_DIR}`);
+    } catch (e: any) {
+        const message = String(e?.message ?? e);
+        if (/not registered|isn't available/i.test(message)) throw new Error("Update the Deltacord module in Deltacord Manager to import files");
+        throw new Error(message.split("\n")[0]);
+    }
+    if (!picked?.path) return null;
+    const file = `file://${picked.path}`;
+    // Make sure it really plays before keeping it.
+    if (await soundPlayerFor(file) !== "fast") {
+        removeSoundFile(file);
+        throw new Error("That file couldn't be played. Try a WAV, MP3 or OGG.");
+    }
+    return { file, name: String(picked.name ?? "sound") };
+}
+
+/** Deletes a sound saved by downloadSound or pickSound. */
 export function removeSoundFile(file: string | null | undefined) {
     const marker = `/pyoncord/${CUSTOM_SOUND_DIR}/`;
     if (!file?.includes(marker)) return;
