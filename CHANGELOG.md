@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.20.0...v1.21.0) (2026-10-25)
+
+
+### Features
+
+* Typewriter plugin ([53924d8](https://github.com/Narehatechi/deltacord-bundle/commit/53924d8626d0a51d6c93598041b99c6a9e0c6693))
+
 # [1.20.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.19.0...v1.20.0) (2026-10-25)
 
 
