@@ -1,3 +1,10 @@
+## [1.25.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.25.0...v1.25.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* Deltacord's slash commands were all hidden ([f168c2b](https://github.com/Narehatechi/deltacord-bundle/commit/f168c2b65fd5b853d0a83b752ede6f42c6241ca1))
+
 # [1.25.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.24.0...v1.25.0) (2026-10-25)
 
 
