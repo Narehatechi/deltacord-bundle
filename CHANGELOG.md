@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.25.1...v1.26.0) (2026-10-25)
+
+
+### Features
+
+* Typewriter dialogue look, and sounds only while Discord is on screen ([706b8ba](https://github.com/Narehatechi/deltacord-bundle/commit/706b8ba089db54fc794bca46b7c9eac0bdfe537f))
+
 ## [1.25.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.25.0...v1.25.1) (2026-10-25)
 
 
