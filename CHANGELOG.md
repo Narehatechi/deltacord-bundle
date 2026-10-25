@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.17.0...v1.18.0) (2026-10-25)
+
+
+### Features
+
+* Deltarune-style crash screen ([50088c0](https://github.com/Narehatechi/deltacord-bundle/commit/50088c030f1beb18327b647a05c1c7e7f4ba41be))
+
 # [1.17.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.16.1...v1.17.0) (2026-10-25)
 
 
