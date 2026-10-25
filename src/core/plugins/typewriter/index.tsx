@@ -79,6 +79,10 @@ const WOBBLE = { off: 0, subtle: 0.05, strong: 0.14 } as const;
 const PITCH_STEP = 0.15;
 
 interface Typing {
+    /** Your own sent messages: the temporary id Discord used before the server's copy arrived. */
+    nonce?: string;
+    /** The text being typed (kept here: the message can change ids or leave the store mid-type). */
+    text: string;
     channelId: string;
     authorId?: string;
     guildId?: string;
@@ -328,8 +332,7 @@ function tick() {
     }
     if (active) {
         const [id, t] = active;
-        const raw = MessageStore.getMessage?.(t.channelId, id)?.content;
-        const text = typeof raw === "string" ? raw : "";
+        const text = t.text;
         const n = revealedAt(t.times, now - (t.start ?? now));
         const flashing = store.flash !== false && t.start !== null && now >= t.start && now - t.start < FLASH_MS + TICK;
         if (n === t.revealed && flashing) redraw(t.channelId, id, t.guildId);
@@ -355,11 +358,29 @@ function finishAll() {
     }
 }
 
+/** A message got a new id (your sent message, once the server has it): keep its progress. */
+function moveTyping(nonce: string, id: string): boolean {
+    if (nonce === id) return typing.has(id);
+    for (const [oldId, t] of typing) {
+        if (t.nonce !== nonce && oldId !== nonce) continue;
+        // Re-key, keeping its place in the queue.
+        const entries = [...typing.entries()].map(([k, v]) => (k === oldId ? [id, v] : [k, v]) as [string, Typing]);
+        typing.clear();
+        for (const [k, v] of entries) typing.set(k, v);
+        redraw(t.channelId, id, t.guildId);
+        return true;
+    }
+    return false;
+}
+
 function startTyping(message: any, guildId?: string) {
     const text = typeof message?.content === "string" ? message.content : "";
     if (!message?.id || !text.trim()) return;
+    if (typing.has(message.id)) return;
     if (!require("@core/deltacord/extras").appOnScreen()) return;
     typing.set(message.id, {
+        nonce: message.nonce,
+        text,
         channelId: message.channel_id,
         authorId: message.author?.id,
         guildId,
@@ -788,14 +809,21 @@ export default defineCorePlugin({
                         return undefined;
                     }
                     if (payload.type !== "MESSAGE_CREATE") return undefined;
-                    // Your own message going out (shown before it's sent) also skips.
-                    if (payload.optimistic) {
-                        if (typing.size) finishAll();
-                        return undefined;
-                    }
                     const message = payload.message;
                     if (!message || message.channel_id !== SelectedChannelStore.getChannelId?.()) return undefined;
                     const mine = message.author?.id === UserStore.getCurrentUser?.()?.id;
+
+                    // Your own message going out: Discord shows it straight away (optimistic), then
+                    // swaps in the server's copy with a new id. Anything still typing finishes, and
+                    // your message types out in your voice from the moment it appears.
+                    if (payload.optimistic || (mine && message.state === "SENDING")) {
+                        if (typing.size) finishAll();
+                        if (store.own !== false) startTyping(message, payload.guildId ?? message.guild_id);
+                        return undefined;
+                    }
+                    // The server's copy of a message already typing: carry on where it was.
+                    if (message.nonce && moveTyping(message.nonce, message.id)) return undefined;
+
                     if (mine && store.own === false) return undefined;
                     startTyping(message, payload.guildId ?? message.guild_id);
                 } catch { }
