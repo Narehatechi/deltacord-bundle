@@ -49,19 +49,25 @@ export interface Voice {
 }
 const store = wrapSync(createStorage<TypewriterSettings>(createMMKVBackend("DELTACORD_TYPEWRITER")));
 
-const SPEEDS = { slow: 60, normal: 34, fast: 18 } as const;
+/** The game runs at 30 frames a second; text moves in whole frames. */
+const FRAME = 1000 / 30;
+/** Frames per letter: normal is one letter a frame, like the game. */
+const SPEEDS = { slow: 2, normal: 1, fast: 0.5 } as const;
 /** Long messages finish within this, however long they are. */
-const MAX_DURATION = 4500;
+const MAX_DURATION = 5000;
 const REDRAW_FLAG = 0x10000000;
-const TICK = 33;
-/** At most one sound this often (ms), like the game's text voice. */
-const SOUND_GAP = 45;
+const TICK = Math.round(FRAME);
+/** A short beat before a message starts typing, like a text box opening. */
+const OPEN_DELAY = 150;
+/** At most one sound this often (ms): about every frame, like the game's text voice. */
+const SOUND_GAP = 30;
 
 interface Typing {
     channelId: string;
     authorId?: string;
     guildId?: string;
-    start: number;
+    /** When it started typing; null while it waits its turn. */
+    start: number | null;
     /** When each character of the text appears (ms after start). */
     times: number[];
     revealed: number;
@@ -71,20 +77,35 @@ const typing = new Map<string, Typing>();
 let ticker: ReturnType<typeof setInterval> | undefined;
 let lastSound = 0;
 
-/** When each character appears: a steady pace, with pauses after punctuation like the game. */
-export function schedule(text: string, perChar: number): number[] {
+/**
+ * When each character appears, in frames like the game: one letter a frame at normal speed, a
+ * short pause after commas, a longer one after . ! ? (each dot of "..." pauses), and after line
+ * breaks. No pause at the very end. Long messages are squeezed to finish in time.
+ */
+export function schedule(text: string, framesPerLetter: number): number[] {
     const times: number[] = [];
-    let t = 0;
+    let frames = 0;
     for (let i = 0; i < text.length; i++) {
-        times.push(t);
+        times.push(Math.round(frames * FRAME));
         const c = text[i];
-        t += c === "." || c === "!" || c === "?" ? perChar * 6 : c === "," || c === ";" || c === ":" ? perChar * 3 : c === "\n" ? perChar * 4 : perChar;
+        const next = text[i + 1];
+        const last = i === text.length - 1;
+        if (last) break;
+        let wait = framesPerLetter;
+        // Pauses only where a sentence actually breaks (not "3.14" or "a.b").
+        const breaks = next === undefined || next === " " || next === "\n" || ".!?,".includes(next);
+        if ((c === "." || c === "!" || c === "?") && breaks) wait = 10;
+        else if ((c === "," || c === ";" || c === ":") && breaks) wait = 5;
+        else if (c === "\n") wait = 8;
+        frames += wait;
     }
-    // Squeeze long messages so they don't take forever.
-    const total = t;
-    if (total > MAX_DURATION) return times.map(x => (x * MAX_DURATION) / total);
+    const total = times[times.length - 1] ?? 0;
+    if (total > MAX_DURATION) return times.map(x => Math.round((x * MAX_DURATION) / total));
     return times;
 }
+
+/** Letters that make the text voice (spaces and punctuation are silent, like the game). */
+export const voiced = (c: string) => /[A-Za-z0-9]/.test(c) || (c.charCodeAt(0) > 127 && !/\s/.test(c));
 
 /** How many of the text's characters show at this moment. */
 export const revealedAt = (times: number[], elapsed: number) => {
@@ -260,20 +281,48 @@ const describeVoice = (v: Voice) =>
 
 function tick() {
     const now = Date.now();
-    for (const [id, t] of typing) {
+    // One message types at a time, like dialogue: the next waits for the one before it.
+    let active: [string, Typing] | undefined;
+    for (const entry of typing) {
+        if (entry[1].start !== null) {
+            active = entry;
+            break;
+        }
+    }
+    if (!active) {
+        const next = typing.entries().next().value as [string, Typing] | undefined;
+        if (next) {
+            // A backlog speeds up so it never falls far behind the chat.
+            const backlog = typing.size - 1;
+            if (backlog >= 2) next[1].times = next[1].times.map(x => x / Math.min(4, backlog));
+            next[1].start = now + OPEN_DELAY;
+            active = next;
+        }
+    }
+    if (active) {
+        const [id, t] = active;
         const raw = MessageStore.getMessage?.(t.channelId, id)?.content;
         const text = typeof raw === "string" ? raw : "";
-        const n = revealedAt(t.times, now - t.start);
-        if (n === t.revealed) continue;
-        // A letter (not just spaces) appeared: the text voice.
-        if (text.slice(t.revealed, n).trim()) playVoice(t.authorId);
-        t.revealed = n;
-        if (n >= t.times.length) typing.delete(id);
-        redraw(t.channelId, id, t.guildId);
+        const n = revealedAt(t.times, now - (t.start ?? now));
+        if (n !== t.revealed) {
+            // A new letter: its voice (spaces and punctuation stay silent).
+            if ([...text.slice(t.revealed, n)].some(voiced)) playVoice(t.authorId);
+            t.revealed = n;
+            if (n >= t.times.length) typing.delete(id);
+            redraw(t.channelId, id, t.guildId);
+        }
     }
     if (!typing.size && ticker) {
         clearInterval(ticker);
         ticker = undefined;
+    }
+}
+
+/** Shows everything still typing straight away (like pressing the button to skip the text). */
+function finishAll() {
+    for (const [id, t] of typing) {
+        typing.delete(id);
+        redraw(t.channelId, id, t.guildId);
     }
 }
 
@@ -284,7 +333,7 @@ function startTyping(message: any, guildId?: string) {
         channelId: message.channel_id,
         authorId: message.author?.id,
         guildId,
-        start: Date.now(),
+        start: null,
         times: schedule(text, SPEEDS[store.speed ?? "normal"] ?? SPEEDS.normal),
         revealed: 0,
     });
@@ -413,7 +462,7 @@ function TypewriterSettingsPage() {
                     Give someone their own voice with /voice: a sound (link) and/or a pitch from 0.5 (low) to 2 (high). /voice-remove takes it away, /voices lists them.
                 </Text>
                 <Text variant="text-xs/medium" color="text-muted">
-                    Only new messages in the chat you're looking at type out. The sound is downloaded once and kept on your phone, so a Discord attachment link works even after it expires.
+                    Only new messages in the chat you're looking at type out, one at a time like dialogue. Start typing, send something or switch chats to skip to the end, like pressing the button in the game. The sound is downloaded once and kept on your phone, so a Discord attachment link works even after it expires.
                 </Text>
             </Stack>
         </ScrollView>
@@ -487,7 +536,17 @@ export default defineCorePlugin({
             ]),
             intercept(payload => {
                 try {
-                    if (payload.type !== "MESSAGE_CREATE" || payload.optimistic) return undefined;
+                    // You start typing, send, or switch chats: everything finishes at once (like skipping text in the game).
+                    if (payload.type === "TYPING_START_LOCAL" || payload.type === "CHANNEL_SELECT") {
+                        if (typing.size) finishAll();
+                        return undefined;
+                    }
+                    if (payload.type !== "MESSAGE_CREATE") return undefined;
+                    // Your own message going out (shown before it's sent) also skips.
+                    if (payload.optimistic) {
+                        if (typing.size) finishAll();
+                        return undefined;
+                    }
                     const message = payload.message;
                     if (!message || message.channel_id !== SelectedChannelStore.getChannelId?.()) return undefined;
                     const mine = message.author?.id === UserStore.getCurrentUser?.()?.id;
