@@ -7,6 +7,7 @@ import { ScrollView, View } from "react-native";
 
 import { getCurrentTheme } from "@lib/addons/themes";
 import { NativeFileModule } from "@lib/api/native/modules";
+import { NavigationNative } from "@metro/common";
 
 import { announceSave, ExtrasSettings, extrasSettings, getExtras, previewSound, resetSaveSound, setCustomSaveSound } from "./extras";
 import { promptReload, syncThemeFont } from "./themeFont";
@@ -178,6 +179,28 @@ function StartupAnimationSwitch() {
                     }
                 }}
             />
+            <CrashPreviewRow />
         </TableRowGroup>
+    );
+}
+
+/** Shows the crash screen without anything crashing (Continue goes back). */
+function CrashPreviewRow() {
+    const navigation = NavigationNative.useNavigation();
+    return (
+        <TableRow
+            arrow
+            label="Preview the crash screen"
+            subLabel="See what shows if something breaks. Continue brings you back."
+            icon={icon("WarningIcon")}
+            onPress={() => {
+                const ErrorBoundaryScreen = require("@core/ui/reporter/components/ErrorBoundaryScreen").default;
+                const error = Object.assign(new Error("This is only a preview. Nothing actually broke."), { stack: "" });
+                navigation.push("BUNNY_CUSTOM_PAGE", {
+                    title: "Crash screen preview",
+                    render: () => <ErrorBoundaryScreen error={error} rerender={() => navigation.goBack()} />,
+                });
+            }}
+        />
     );
 }
