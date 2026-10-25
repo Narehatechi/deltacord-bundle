@@ -1,3 +1,10 @@
+## [1.16.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.16.0...v1.16.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* white accent no longer puts white text on white ([4cf8482](https://github.com/Narehatechi/deltacord-bundle/commit/4cf8482c2f24c3ab63141600135c059731ee4057))
+
 # [1.16.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.15.1...v1.16.0) (2026-10-24)
 
 
