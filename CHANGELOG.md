@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.18.0...v1.18.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* Message Logger catches other people's deletes and edits ([0634058](https://github.com/Narehatechi/deltacord-bundle/commit/0634058ca06879b3637bb83d6e1c22f8bba69ad0))
+
 # [1.18.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.17.0...v1.18.0) (2026-10-25)
 
 
