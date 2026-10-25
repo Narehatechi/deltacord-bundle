@@ -91,7 +91,8 @@ export function registerCommands(commands: any[]): () => void {
     for (const command of commands) {
         try {
             command.options ??= [];
-            command.shouldHide ??= () => false;
+            // (No shouldHide: despite its name, the commands API hides a command when it
+            // returns false, which is what hid every Deltacord command.)
             undo.push(registerCommand(command));
         } catch (e) {
             console.error(`[Deltacord] Couldn't add /${command.name}`, e);

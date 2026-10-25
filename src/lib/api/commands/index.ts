@@ -15,6 +15,8 @@ export function patchCommands() {
     const unpatch = after("getBuiltInCommands", commandsModule, ([type], res: ApplicationCommand[]) => {
         return [...res, ...commands.filter(c =>
             (type instanceof Array ? type.includes(c.type) : type === c.type)
+            // shouldHide is really "should show" (kept for plugins that rely on it): a command is
+            // left out only when it returns false.
             && c.__bunny?.shouldHide?.() !== false)
         ];
     });
