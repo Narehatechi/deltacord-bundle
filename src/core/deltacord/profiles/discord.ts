@@ -183,8 +183,7 @@ export async function applyProfile(saved: SavedProfile): Promise<ApplyResult> {
             identity, avatar, "avatar", result,
         );
         if (body) {
-            if (guildId) dispatch({ type: "GUILD_MEMBER_PROFILE_UPDATE", guildMember: body, guildId });
-            else dispatch({ type: "CURRENT_USER_UPDATE", user: body });
+            if (!guildId) dispatch({ type: "CURRENT_USER_UPDATE", user: body });
             if ("nick" in identity || "global_name" in identity) result.changed.push(nameLabel);
             if ("avatar" in avatar && !result.failed.some(f => f.what === "avatar")) result.changed.push("avatar");
         }
@@ -210,7 +209,6 @@ export async function applyProfile(saved: SavedProfile): Promise<ApplyResult> {
             about, theme, "profile theme", result,
         );
         if (body) {
-            dispatch({ type: "USER_PROFILE_UPDATE_SUCCESS", userId: user.id, guildId, ...body });
             if ("bio" in about) result.changed.push("bio");
             if ("pronouns" in about) result.changed.push("pronouns");
             if (Object.keys(theme).length && !result.failed.some(f => f.what === "profile theme")) result.changed.push("profile theme");
@@ -220,5 +218,12 @@ export async function applyProfile(saved: SavedProfile): Promise<ApplyResult> {
         if (Object.keys(theme).length && !result.failed.some(f => f.what === "profile theme")) result.failed.push({ what: "profile theme", why: e.message });
     }
 
+    // Fetch the profile again with Discord's own code, so the change shows everywhere at once
+    // (no reload). The main profile too: server profiles show on top of it.
+    if (result.changed.length) {
+        const { refreshProfile } = require("@core/deltacord/refresh");
+        await refreshProfile(user.id, guildId);
+        if (guildId) await refreshProfile(user.id);
+    }
     return result;
 }

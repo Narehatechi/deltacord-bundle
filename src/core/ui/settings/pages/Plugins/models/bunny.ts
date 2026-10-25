@@ -26,9 +26,11 @@ export default function unifyBunnyPlugin(manifest: BunnyPluginManifest): Unified
         },
         toggle(start: boolean) {
             try {
-                start
+                Promise.resolve(start
                     ? enablePlugin(manifest.id, true)
-                    : disablePlugin(manifest.id);
+                    : disablePlugin(manifest.id))
+                    // Show the change in the open chat right away (no reload needed).
+                    .finally(() => require("@core/deltacord/refresh").refreshChat());
             } catch (e) {
                 console.error(e);
                 // showToast("Failed to toggle plugin " + e, findAssetId("XSmallIcon"));

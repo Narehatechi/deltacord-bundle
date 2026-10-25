@@ -93,6 +93,8 @@ function SettingsComponent() {
         (settingsStore as any)[key] = value;
         announceSave();
         if (key === "persist" && value) saveNow();
+        // How kept messages look changes in the open chat right away.
+        require("@core/deltacord/refresh").refreshChat();
     };
     const switchRow = (key: keyof Settings, label: string, subLabel: string | undefined, iconName: string) => (
         <TableSwitchRow

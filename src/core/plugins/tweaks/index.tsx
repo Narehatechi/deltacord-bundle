@@ -151,6 +151,7 @@ function setTweak(t: Tweak, on: boolean) {
     announceSave(`${t.name}: ${on ? "on" : "off"}`);
     if (!pluginActive) return;
     on ? startTweak(t) : stopTweak(t);
+    require("@core/deltacord/refresh").refreshChat();
 }
 
 export function TweaksSettings() {

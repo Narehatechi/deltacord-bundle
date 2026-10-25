@@ -20,9 +20,11 @@ export default function unifyVdPlugin(vdPlugin: VendettaPlugin): UnifiedPluginMo
             useProxy(VdPluginManager.plugins[vdPlugin.id]);
         },
         toggle(start: boolean) {
-            start
+            Promise.resolve(start
                 ? VdPluginManager.startPlugin(vdPlugin.id)
-                : VdPluginManager.stopPlugin(vdPlugin.id);
+                : VdPluginManager.stopPlugin(vdPlugin.id))
+                // Show the change in the open chat right away.
+                .finally(() => require("@core/deltacord/refresh").refreshChat());
         },
         resolveSheetComponent() {
             return import("../sheets/VdPluginInfoActionSheet");
