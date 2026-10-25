@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.16.1...v1.17.0) (2026-10-25)
+
+
+### Features
+
+* changes show right away, no reload ([44daeb1](https://github.com/Narehatechi/deltacord-bundle/commit/44daeb122e3b399b90c8e984d9fded2cfbf1d9df))
+
 ## [1.16.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.16.0...v1.16.1) (2026-10-25)
 
 
