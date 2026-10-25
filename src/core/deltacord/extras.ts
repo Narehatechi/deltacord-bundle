@@ -122,7 +122,19 @@ export async function soundPlayerFor(source: string): Promise<"fast" | "discord"
     return (await fastId(source)) != null ? "fast" : "discord";
 }
 
+/** Discord is on screen (not in the background, not behind another app, screen on). */
+export function appOnScreen(): boolean {
+    try {
+        const state = ReactNative?.AppState?.currentState;
+        return state == null || state === "active";
+    } catch {
+        return true;
+    }
+}
+
 async function playSource(source: string, volume = 1, rate = 1): Promise<boolean> {
+    // Deltacord's sounds only play while you're actually in Discord.
+    if (!appOnScreen()) return false;
     const id = await fastId(source);
     if (id != null) {
         try {

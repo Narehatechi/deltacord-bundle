@@ -14,7 +14,7 @@ import { createMMKVBackend, createStorage, useProxy, wrapSync } from "@core/vend
 import { intercept } from "@lib/api/flux";
 import { after } from "@lib/api/patcher";
 import { showToast } from "@lib/ui/toasts";
-import { FluxDispatcher } from "@metro/common";
+import { FluxDispatcher, ReactNative } from "@metro/common";
 import { AlertActionButton, AlertActions, AlertModal, Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
 import { openAlert } from "@lib/ui/alerts";
 import { findByName, findByStoreNameLazy } from "@metro/wrappers";
@@ -33,6 +33,10 @@ interface TypewriterSettings {
     sound?: boolean;
     /** Your own messages type out too. */
     own?: boolean;
+    /** "* " before messages, like in-game dialogue. */
+    asterisk?: boolean;
+    /** A quick flash on a message as its text box opens. */
+    flash?: boolean;
     soundUrl?: string | null;
     soundFile?: string | null;
     /** The imported file's name (for the settings). */
@@ -62,6 +66,10 @@ const REDRAW_FLAG = 0x10000000;
 const TICK = Math.round(FRAME);
 /** A short beat before a message starts typing, like a text box opening. */
 const OPEN_DELAY = 150;
+/** How long the opening flash lasts. */
+const FLASH_MS = 350;
+/** Marks the "* " Deltacord adds, so it's never added twice. */
+const STAR = "__deltacordStar";
 /** At most one sound this often (ms): about every frame, like the game's text voice. */
 const SOUND_GAP = 30;
 
@@ -315,6 +323,8 @@ function tick() {
         const raw = MessageStore.getMessage?.(t.channelId, id)?.content;
         const text = typeof raw === "string" ? raw : "";
         const n = revealedAt(t.times, now - (t.start ?? now));
+        const flashing = store.flash !== false && t.start !== null && now >= t.start && now - t.start < FLASH_MS + TICK;
+        if (n === t.revealed && flashing) redraw(t.channelId, id, t.guildId);
         if (n !== t.revealed) {
             // A new letter: its voice (spaces and punctuation stay silent).
             if ([...text.slice(t.revealed, n)].some(voiced)) playVoice(t.authorId);
@@ -340,6 +350,7 @@ function finishAll() {
 function startTyping(message: any, guildId?: string) {
     const text = typeof message?.content === "string" ? message.content : "";
     if (!message?.id || !text.trim()) return;
+    if (!require("@core/deltacord/extras").appOnScreen()) return;
     typing.set(message.id, {
         channelId: message.channel_id,
         authorId: message.author?.id,
@@ -371,14 +382,33 @@ function patchRows() {
         try {
             if ((input?.rowType ?? row?.rowType) !== 1) return;
             const message = row?.message;
-            const t = message?.id ? typing.get(message.id) : undefined;
-            if (!t || !Array.isArray(message.content)) return;
-            const fraction = t.times.length ? t.revealed / t.times.length : 1;
-            const total = countNodes(message.content);
-            // The letters still to come are drawn see-through, so the message keeps its full
-            // size from the start and the chat doesn't jump around as it types.
-            const [shown, rest] = splitNodes(message.content, Math.max(0, Math.round(total * fraction)));
-            message.content = [...shown, ...invisible(rest)];
+            if (!message?.id || !Array.isArray(message.content)) return;
+            // Drop our own "* " if the row is being rebuilt from what we drew last time.
+            let content: any[] = message.content.filter((n: any) => !n?.[STAR]);
+            const star = store.asterisk !== false && content.length
+                ? [{ type: "text", content: "* ", [STAR]: true }]
+                : [];
+
+            const t = typing.get(message.id);
+            if (t) {
+                const fraction = t.times.length ? t.revealed / t.times.length : 1;
+                const total = countNodes(content);
+                // The letters still to come are drawn see-through, so the message keeps its full
+                // size from the start and the chat doesn't jump around as it types.
+                const [shown, rest] = splitNodes(content, Math.max(0, Math.round(total * fraction)));
+                content = [...shown, ...invisible(rest)];
+
+                // The text box opening: a white flash on the message that fades out.
+                const since = t.start === null ? -1 : Date.now() - t.start;
+                if (store.flash !== false && since >= 0 && since < FLASH_MS) {
+                    const alpha = Math.round(0x40 * (1 - since / FLASH_MS)).toString(16).padStart(2, "0");
+                    row.backgroundHighlight = {
+                        backgroundColor: processColor(`#FFFFFF${alpha}`),
+                        gutterColor: processColor("#FFFFFF"),
+                    };
+                }
+            }
+            message.content = [...star, ...content];
         } catch { }
     });
 }
@@ -400,6 +430,23 @@ function TypewriterSettingsPage() {
                         onPress={() => void (store.speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length])}
                     />
                     <TableSwitchRow label="My own messages too" value={store.own ?? false} onValueChange={(v: boolean) => void (store.own = v)} />
+                </TableRowGroup>
+                <TableRowGroup title="Look">
+                    <TableSwitchRow
+                        label="* before messages"
+                        subLabel={'Every message starts with "* ", like dialogue in the game.'}
+                        value={store.asterisk !== false}
+                        onValueChange={(v: boolean) => {
+                            store.asterisk = v;
+                            require("@core/deltacord/refresh").refreshChat();
+                        }}
+                    />
+                    <TableSwitchRow
+                        label="Flash when a message starts"
+                        subLabel="A quick white flash as each message's text box opens."
+                        value={store.flash !== false}
+                        onValueChange={(v: boolean) => void (store.flash = v)}
+                    />
                 </TableRowGroup>
                 <TableRowGroup title="Text sound">
                     <TableSwitchRow label="Play a sound while typing" value={store.sound !== false} onValueChange={(v: boolean) => void (store.sound = v)} />
@@ -537,6 +584,14 @@ export default defineCorePlugin({
         if (source) require("@core/deltacord/extras").preloadSound(source);
         undo = all(
             patchRows(),
+            // Leaving Discord (home screen, another app, screen off): finish everything silently,
+            // so nothing is left mid-type or making sound in the background.
+            (() => {
+                const sub = (require("react-native").AppState ?? ReactNative?.AppState)?.addEventListener?.("change", (state: string) => {
+                    if (state !== "active" && typing.size) finishAll();
+                });
+                return () => sub?.remove?.();
+            })(),
             registerCommands([
                 {
                     name: "voice",
