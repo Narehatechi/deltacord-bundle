@@ -125,8 +125,10 @@ export async function soundPlayerFor(source: string): Promise<"fast" | "discord"
 /** Discord is on screen (not in the background, not behind another app, screen on). */
 export function appOnScreen(): boolean {
     try {
+        // Only a definite "in the background" counts: some Discord versions report "unknown"
+        // (or nothing) while you're right there, and that silenced every sound.
         const state = ReactNative?.AppState?.currentState;
-        return state == null || state === "active";
+        return state !== "background" && state !== "inactive";
     } catch {
         return true;
     }

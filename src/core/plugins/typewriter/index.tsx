@@ -438,7 +438,7 @@ export function openVoiceEditor(userId: string, name: string) {
     lastSound = 0;
     playVoice(userId);
     openAlert("deltacord-typewriter-voice", <AlertModal
-        title={`${name}'s voice`}
+        title={userId === UserStore.getCurrentUser?.()?.id ? "Your voice" : `${name}'s voice`}
         content={voice ? `${describeVoice(voice)}.` : "Using the default voice. Import a sound or change the pitch to give them their own."}
         actions={<AlertActions>
             <AlertActionButton text="Import a sound file" variant="primary" onPress={async () => {
@@ -495,10 +495,11 @@ function patchMessageMenu(): () => void {
                         return node;
                     }
                     done = true;
+                    const mine = author.id === UserStore.getCurrentUser?.()?.id;
                     const name = author.globalName ?? author.global_name ?? author.username ?? "them";
                     const row = React.cloneElement(rows[0], {
                         key: KEY,
-                        label: `Typewriter voice for ${name}`,
+                        label: mine ? "Your Typewriter voice" : `Typewriter voice for ${name}`,
                         onPress: () => {
                             try {
                                 sheets.hideActionSheet?.();
@@ -543,7 +544,6 @@ function patchMessageMenu(): () => void {
             const [component, key, context] = args;
             const author = context?.message?.author;
             if (key !== "MessageLongPressActionSheet" || !author?.id || typeof component?.then !== "function") return;
-            if (author.id === UserStore.getCurrentUser?.()?.id) return;
             component.then((module: any) => {
                 if (!module || typeof module.default !== "function") return;
                 // Kept while this menu is open (it can redraw); removed when the next menu opens.
@@ -580,7 +580,7 @@ function TypewriterSettingsPage() {
                         trailing={<TableRow.TrailingText text={speed[0].toUpperCase() + speed.slice(1)} />}
                         onPress={() => void (store.speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length])}
                     />
-                    <TableSwitchRow label="My own messages too" value={store.own ?? false} onValueChange={(v: boolean) => void (store.own = v)} />
+                    <TableSwitchRow label="My own messages too" subLabel="Your messages type out in your voice (long-press one of yours to set it)." value={store.own !== false} onValueChange={(v: boolean) => void (store.own = v)} />
                 </TableRowGroup>
                 <TableRowGroup title="Voice feel">
                     <TableRow
@@ -796,7 +796,7 @@ export default defineCorePlugin({
                     const message = payload.message;
                     if (!message || message.channel_id !== SelectedChannelStore.getChannelId?.()) return undefined;
                     const mine = message.author?.id === UserStore.getCurrentUser?.()?.id;
-                    if (mine && !store.own) return undefined;
+                    if (mine && store.own === false) return undefined;
                     startTyping(message, payload.guildId ?? message.guild_id);
                 } catch { }
                 return undefined;
