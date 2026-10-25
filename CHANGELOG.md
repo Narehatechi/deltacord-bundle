@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.18.1...v1.19.0) (2026-10-25)
+
+
+### Features
+
+* pixel-art SOUL on the crash screen ([4d92420](https://github.com/Narehatechi/deltacord-bundle/commit/4d92420e073b41e6e95f1ec6d75bbb6749e7ec26))
+
 ## [1.18.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.18.0...v1.18.1) (2026-10-25)
 
 
