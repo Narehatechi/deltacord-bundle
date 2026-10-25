@@ -187,8 +187,10 @@ export function rawColorFor(key: string, original: string | undefined): string |
 
     let out: chroma.Color;
     if (hue === "accent" && !HUES.accent) {
-        // A white accent: the brand scale becomes white, its darker steps light grey.
-        out = chroma(neutralFor(Math.min(1, lightness + 0.4)));
+        // A white accent. Discord draws many brand-coloured pills, badges and bars straight from
+        // this scale with white text on top, so here it becomes a dark grey (white text stays
+        // readable); the white itself comes from the semantic colours, where the text is black.
+        out = chroma(neutralFor(Math.min(0.42, Math.max(0.22, lightness * 0.6))));
     } else if (hue === "neutral" || !HUES[hue]) {
         out = chroma(neutralFor(lightness));
     } else {
