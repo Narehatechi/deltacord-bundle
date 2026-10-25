@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.22.0...v1.23.0) (2026-10-25)
+
+
+### Features
+
+* a Typewriter voice for each person ([ed19034](https://github.com/Narehatechi/deltacord-bundle/commit/ed190346504a20d41c588fce2ecf010328b1e618))
+
 # [1.22.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.21.0...v1.22.0) (2026-10-25)
 
 
