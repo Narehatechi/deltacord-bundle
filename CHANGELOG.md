@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.19.0...v1.20.0) (2026-10-25)
+
+
+### Features
+
+* a livelier crash screen ([62b43cb](https://github.com/Narehatechi/deltacord-bundle/commit/62b43cb9d18381d4bf8c0db64529d90cb281068b))
+
 # [1.19.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.18.1...v1.19.0) (2026-10-25)
 
 
