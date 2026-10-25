@@ -189,12 +189,27 @@ function placeName(channelId: string) {
 }
 
 /** Marks a message deleted if it should be kept. Returns whether the delete must be blocked. */
+/** Enough of a message record, made from the raw copy, to log a message Discord had unloaded. */
+function recordFromRaw(raw: any): any {
+    if (!raw?.id || !raw.author) return undefined;
+    return {
+        ...raw,
+        state: "SENT",
+        author: { ...raw.author, globalName: raw.author.global_name },
+        mentions: Array.isArray(raw.mentions) ? raw.mentions.map((m: any) => m?.id ?? m) : [],
+        timestamp: raw.timestamp,
+        editedTimestamp: raw.edited_timestamp,
+    };
+}
+
 function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
     if (bypassed.has(id)) return false;
     // Already kept (our own redispatches, or a message we put back after a restart).
     if (logs.get(id)?.deleted) return true;
 
-    const record = MessageStore.getMessage(channelId, id);
+    // Discord only keeps messages for chats that are loaded; for others, use the copy kept
+    // from when the message arrived.
+    const record = MessageStore.getMessage(channelId, id) ?? recordFromRaw(rawCache.get(id));
     if (!record) return false;
     // Unsent and ephemeral messages are dismissed, not deleted.
     if (record.state && record.state !== "SENT") return false;
@@ -270,12 +285,13 @@ function onUpdate(payload: any) {
     const update = payload.message;
     if (!update?.id || !update.channel_id) return;
     if (bypassed.has(update.id)) return;
-    cacheRaw({ ...rawCache.get(update.id), ...update });
+    const previousRaw = rawCache.get(update.id);
+    cacheRaw({ ...previousRaw, ...update });
 
     const settings = getSettings();
     if (!settings.logEdits) return;
 
-    const record = MessageStore.getMessage(update.channel_id, update.id);
+    const record = MessageStore.getMessage(update.channel_id, update.id) ?? recordFromRaw(previousRaw);
     if (typeof update.content !== "string" || !record?.content) return;
     const before = withoutNotes(record.content);
     const after = withoutNotes(update.content);

@@ -94,7 +94,9 @@ export function runSelfTest(): SelfTestCheck[] {
     // Shared plumbing every plugin depends on.
     const shared: Array<[string, () => boolean | string]> = [
         ["Discord's event system", () => fn(FluxDispatcher, "dispatch")],
-        ["Events seen by Deltacord", () => (fluxStats.dispatches > 0 ? `${fluxStats.dispatches} (${fluxStats.blocked} blocked)` : false)],
+        ["Events seen by Deltacord", () => (fluxStats.dispatches > 0
+            ? `${fluxStats.dispatches} (${fluxStats.viaDispatch} sent in the app, ${fluxStats.viaInterceptor} only from Discord's servers, ${fluxStats.blocked} blocked)`
+            : false)],
         ["Sending messages", () => fn(messageUtil, "sendMessage")],
         ["Bot replies (only you see)", () => fn(messageUtil, "sendBotMessage")],
         ["Message changes applied", () => `${sendStats.sent}${sendStats.failed ? ` (${sendStats.failed} failed)` : ""}`],
