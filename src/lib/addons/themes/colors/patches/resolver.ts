@@ -7,6 +7,8 @@ import { createLazyModule } from "@metro/lazy";
 import chroma from "chroma-js";
 
 const tokenReference = findByProps("SemanticColor");
+/** Discord's own theme names (the ones it can switch an area to). */
+const THEME_NAMES = ["light", "dark", "darker", "midnight", "amoled"];
 const isThemeModule = createLazyModule(byMutableProp("isThemeDark"));
 
 const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
@@ -23,7 +25,12 @@ const SEMANTIC_FALLBACK_MAP: Record<string, string> = {
 };
 
 export default function patchDefinitionAndResolver() {
-    const callback = ([theme]: any[]) => theme === _colorRef.key ? [_colorRef.current!.reference] : void 0;
+    // Discord draws some areas in another theme on purpose: a profile with bright theme colours
+    // (an orange banner, say) gets the light theme. With a Deltacord theme on, those areas mixed
+    // the light theme's dark text with the theme's dark cards, so text vanished. While a theme is
+    // on, every area uses it.
+    const isOurs = (theme: any) => !!_colorRef.current && (theme === _colorRef.key || typeof theme === "string" && THEME_NAMES.includes(theme));
+    const callback = ([theme]: any[]) => isOurs(theme) ? [_colorRef.current!.reference] : void 0;
 
     // What Discord's native side is told when a Deltacord theme is applied. A different native theme
     // makes Discord recreate its screen (on Android), which left it stuck on its launch logo. So if
@@ -54,7 +61,7 @@ export default function patchDefinitionAndResolver() {
         before("updateTheme", NativeThemeModule, nativeCallback),
         instead("resolveSemanticColor", tokenReference.default.meta ?? tokenReference.default.internal, (args: any[], orig: any) => {
             if (!_colorRef.current) return orig(...args);
-            if (args[0] !== _colorRef.key) return orig(...args);
+            if (!isOurs(args[0])) return orig(...args);
 
             args[0] = _colorRef.current.reference;
 

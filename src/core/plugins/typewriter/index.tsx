@@ -12,12 +12,12 @@
  */
 import { createMMKVBackend, createStorage, useProxy, wrapSync } from "@core/vendetta/storage";
 import { intercept } from "@lib/api/flux";
-import { after } from "@lib/api/patcher";
+import { after, before } from "@lib/api/patcher";
 import { showToast } from "@lib/ui/toasts";
 import { FluxDispatcher, ReactNative } from "@metro/common";
 import { AlertActionButton, AlertActions, AlertModal, Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
 import { openAlert } from "@lib/ui/alerts";
-import { findByName, findByStoreNameLazy } from "@metro/wrappers";
+import { findByName, findByProps, findByStoreNameLazy } from "@metro/wrappers";
 import { useState } from "react";
 import { processColor, ScrollView } from "react-native";
 
@@ -37,6 +37,8 @@ interface TypewriterSettings {
     asterisk?: boolean;
     /** A quick flash on a message as its text box opens. */
     flash?: boolean;
+    /** How much each letter's sound varies in pitch. */
+    wobble?: "off" | "subtle" | "strong";
     soundUrl?: string | null;
     soundFile?: string | null;
     /** The imported file's name (for the settings). */
@@ -72,6 +74,9 @@ const FLASH_MS = 350;
 const STAR = "__deltacordStar";
 /** At most one sound this often (ms): about every frame, like the game's text voice. */
 const SOUND_GAP = 30;
+/** Pitch wobble per letter: how far (as a fraction) each letter's pitch can stray. */
+const WOBBLE = { off: 0, subtle: 0.05, strong: 0.14 } as const;
+const PITCH_STEP = 0.15;
 
 interface Typing {
     channelId: string;
@@ -255,7 +260,10 @@ function playVoice(userId?: string) {
     lastSound = now;
     try {
         const { source, pitch } = voiceFor(userId);
-        if (source) void require("@core/deltacord/extras").playSoundSource(source, 1, pitch);
+        // A little random pitch on each letter, so it sounds spoken rather than stamped.
+        const amount = WOBBLE[store.wobble ?? "subtle"] ?? 0;
+        const rate = Math.min(2, Math.max(0.5, pitch * (1 + (Math.random() * 2 - 1) * amount)));
+        if (source) void require("@core/deltacord/extras").playSoundSource(source, 1, rate);
     } catch { }
 }
 
@@ -413,6 +421,149 @@ function patchRows() {
     });
 }
 
+/**
+ * A person's voice, in one place: hear it, import a sound file, make it higher or lower, or
+ * reset it. Opened from Typewriter's settings and from long-pressing their message.
+ */
+export function openVoiceEditor(userId: string, name: string) {
+    const voice = store.voices?.[userId];
+    const pitch = voice?.pitch ?? 1;
+    const changePitch = async (by: number) => {
+        const next = Math.round(Math.min(2, Math.max(0.5, pitch + by)) * 100) / 100;
+        await setVoice(userId, name, undefined, next);
+        lastSound = 0;
+        playVoice(userId);
+        openVoiceEditor(userId, name);
+    };
+    lastSound = 0;
+    playVoice(userId);
+    openAlert("deltacord-typewriter-voice", <AlertModal
+        title={`${name}'s voice`}
+        content={voice ? `${describeVoice(voice)}.` : "Using the default voice. Import a sound or change the pitch to give them their own."}
+        actions={<AlertActions>
+            <AlertActionButton text="Import a sound file" variant="primary" onPress={async () => {
+                try {
+                    const picked = await require("@core/deltacord/extras").pickSound();
+                    if (!picked) return;
+                    await setVoice(userId, name, undefined, undefined, picked);
+                    lastSound = 0;
+                    playVoice(userId);
+                    showToast(`${name}: ${picked.name}`);
+                } catch (e: any) {
+                    showToast(e?.message ?? String(e));
+                }
+            }} />
+            <AlertActionButton text={`Higher (now ${pitch})`} variant="secondary" onPress={() => void changePitch(PITCH_STEP)} />
+            <AlertActionButton text={`Lower (now ${pitch})`} variant="secondary" onPress={() => void changePitch(-PITCH_STEP)} />
+            <AlertActionButton text="Play" variant="secondary" onPress={() => {
+                lastSound = 0;
+                playVoice(userId);
+                openVoiceEditor(userId, name);
+            }} />
+            {voice ? <AlertActionButton text="Back to the default voice" variant="destructive" onPress={() => {
+                removeVoice(userId);
+                showToast(`${name} uses the default voice`);
+            }} /> : null}
+            <AlertActionButton text="Close" variant="secondary" />
+        </AlertActions>}
+    />);
+}
+
+/**
+ * Adds "Typewriter voice" to the menu you get by long-pressing a message, for its author.
+ * Discord loads that menu on demand (openLazy); its rows are copied from one already there.
+ */
+function patchMessageMenu(): () => void {
+    const sheets = findByProps("openLazy", "hideActionSheet");
+    if (typeof sheets?.openLazy !== "function") {
+        console.error("[Typewriter] Couldn't find Discord's menus");
+        return () => { };
+    }
+    const React = require("react");
+    const isRow = (node: any) => !!node?.props && typeof node.props.label === "string" && typeof node.props.onPress === "function";
+    const KEY = "deltacord-typewriter-voice";
+
+    const addRow = (tree: any, author: any) => {
+        let done = false;
+        const visit = (node: any, depth: number): any => {
+            if (done || !node || typeof node !== "object" || depth > 30) return node;
+            if (Array.isArray(node)) {
+                const rows = node.filter(isRow);
+                if (rows.length) {
+                    if (node.some((n: any) => n?.key === KEY)) {
+                        done = true;
+                        return node;
+                    }
+                    done = true;
+                    const name = author.globalName ?? author.global_name ?? author.username ?? "them";
+                    const row = React.cloneElement(rows[0], {
+                        key: KEY,
+                        label: `Typewriter voice for ${name}`,
+                        onPress: () => {
+                            try {
+                                sheets.hideActionSheet?.();
+                            } catch { }
+                            setTimeout(() => openVoiceEditor(author.id, name), 250);
+                        },
+                    });
+                    return [...node, row];
+                }
+                let changed = false;
+                const next = node.map(child => {
+                    const out = visit(child, depth + 1);
+                    if (out !== child) changed = true;
+                    return out;
+                });
+                return changed ? next : node;
+            }
+            if (node.props) {
+                for (const prop of ["children", "items"]) {
+                    const child = node.props[prop];
+                    if (!child || typeof child !== "object") continue;
+                    const out = visit(child, depth + 1);
+                    if (out !== child) return React.cloneElement(node, { [prop]: out });
+                }
+            }
+            return node;
+        };
+        return visit(tree, 0);
+    };
+
+    let undoMenu: (() => unknown) | undefined;
+    let menuTimer: ReturnType<typeof setTimeout> | undefined;
+    const dropMenuPatch = () => {
+        undoMenu?.();
+        undoMenu = undefined;
+        if (menuTimer) clearTimeout(menuTimer);
+    };
+
+    const unpatch = before("openLazy", sheets, (args: any[]) => {
+        try {
+            dropMenuPatch();
+            const [component, key, context] = args;
+            const author = context?.message?.author;
+            if (key !== "MessageLongPressActionSheet" || !author?.id || typeof component?.then !== "function") return;
+            if (author.id === UserStore.getCurrentUser?.()?.id) return;
+            component.then((module: any) => {
+                if (!module || typeof module.default !== "function") return;
+                // Kept while this menu is open (it can redraw); removed when the next menu opens.
+                undoMenu = after("default", module, (_: any, tree: any) => {
+                    try {
+                        return addRow(tree, author);
+                    } catch {
+                        return tree;
+                    }
+                });
+                menuTimer = setTimeout(dropMenuPatch, 60_000);
+            });
+        } catch { }
+    });
+    return () => {
+        unpatch();
+        dropMenuPatch();
+    };
+}
+
 function TypewriterSettingsPage() {
     useProxy(store);
     const [link, setLink] = useState("");
@@ -430,6 +581,19 @@ function TypewriterSettingsPage() {
                         onPress={() => void (store.speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length])}
                     />
                     <TableSwitchRow label="My own messages too" value={store.own ?? false} onValueChange={(v: boolean) => void (store.own = v)} />
+                </TableRowGroup>
+                <TableRowGroup title="Voice feel">
+                    <TableRow
+                        label="Pitch wobble"
+                        subLabel="Each letter's sound varies a little in pitch, so it sounds spoken. Works on imported sounds too. Tap to change."
+                        trailing={<TableRow.TrailingText text={(store.wobble ?? "subtle").replace(/^./, c => c.toUpperCase())} />}
+                        onPress={() => {
+                            const order: Array<keyof typeof WOBBLE> = ["off", "subtle", "strong"];
+                            store.wobble = order[(order.indexOf(store.wobble ?? "subtle") + 1) % order.length];
+                            lastSound = 0;
+                            playVoice();
+                        }}
+                    />
                 </TableRowGroup>
                 <TableRowGroup title="Look">
                     <TableSwitchRow
@@ -522,37 +686,7 @@ function TypewriterSettingsPage() {
                                 key={id}
                                 label={UserStore.getUser?.(id)?.globalName ?? UserStore.getUser?.(id)?.username ?? v.name}
                                 subLabel={`${describeVoice(v)} · tap for options`}
-                                onPress={() => {
-                                    lastSound = 0;
-                                    playVoice(id);
-                                    openAlert("deltacord-typewriter-voice", <AlertModal
-                                        title={`${v.name}'s voice`}
-                                        content={`${describeVoice(v)}. Change it with /voice.`}
-                                        actions={<AlertActions>
-                                            <AlertActionButton text="Play again" variant="secondary" onPress={() => {
-                                                lastSound = 0;
-                                                playVoice(id);
-                                            }} />
-                                            <AlertActionButton text="Import a sound file" variant="secondary" onPress={async () => {
-                                                try {
-                                                    const picked = await require("@core/deltacord/extras").pickSound();
-                                                    if (!picked) return;
-                                                    await setVoice(id, v.name, undefined, undefined, picked);
-                                                    lastSound = 0;
-                                                    playVoice(id);
-                                                    showToast(`${v.name}: ${picked.name}`);
-                                                } catch (e: any) {
-                                                    showToast(e?.message ?? String(e));
-                                                }
-                                            }} />
-                                            <AlertActionButton text="Remove" variant="destructive" onPress={() => {
-                                                removeVoice(id);
-                                                showToast(`Removed ${v.name}'s voice`);
-                                            }} />
-                                            <AlertActionButton text="Close" variant="secondary" />
-                                        </AlertActions>}
-                                    />);
-                                }}
+                                onPress={() => openVoiceEditor(id, v.name)}
                             />
                         ))
                         : <TableRow label="Nobody yet" subLabel="In any chat, type /voice, pick a person, and add a sound link and/or a pitch." />}
@@ -584,6 +718,7 @@ export default defineCorePlugin({
         if (source) require("@core/deltacord/extras").preloadSound(source);
         undo = all(
             patchRows(),
+            patchMessageMenu(),
             // Leaving Discord (home screen, another app, screen off): finish everything silently,
             // so nothing is left mid-type or making sound in the background.
             (() => {
