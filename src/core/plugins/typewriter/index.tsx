@@ -367,17 +367,42 @@ function moveTyping(nonce: string, id: string): boolean {
         const entries = [...typing.entries()].map(([k, v]) => (k === oldId ? [id, v] : [k, v]) as [string, Typing]);
         typing.clear();
         for (const [k, v] of entries) typing.set(k, v);
+        typedIds.add(id);
         redraw(t.channelId, id, t.guildId);
         return true;
     }
     return false;
 }
 
+/** Messages already typed (or typing), so the same message never types twice. */
+const typedIds = new Set<string>();
+/** Recent messages by channel + author + text: catches the same message arriving again under a new id. */
+const recent = new Map<string, { id: string; at: number; }>();
+const RECENT_MS = 20_000;
+
+function remember(id: string, key: string) {
+    typedIds.add(id);
+    if (typedIds.size > 500) typedIds.delete(typedIds.values().next().value!);
+    recent.set(key, { id, at: Date.now() });
+    for (const [k, v] of recent) if (Date.now() - v.at > RECENT_MS) recent.delete(k);
+}
+
 function startTyping(message: any, guildId?: string) {
     const text = typeof message?.content === "string" ? message.content : "";
     if (!message?.id || !text.trim()) return;
-    if (typing.has(message.id)) return;
+    // Already typed or typing: don't start it over (that was the "stops and repeats").
+    if (typing.has(message.id) || typedIds.has(message.id)) return;
+    const key = `${message.channel_id}:${message.author?.id}:${text}`;
+    const seen = recent.get(key);
+    if (seen && Date.now() - seen.at < RECENT_MS) {
+        // The same message again with a new id (your sent message, or Discord resending it):
+        // carry on with the one already typing, or leave it be if it's done.
+        moveTyping(seen.id, message.id);
+        remember(message.id, key);
+        return;
+    }
     if (!require("@core/deltacord/extras").appOnScreen()) return;
+    remember(message.id, key);
     typing.set(message.id, {
         nonce: message.nonce,
         text,
@@ -804,8 +829,14 @@ export default defineCorePlugin({
             intercept(payload => {
                 try {
                     // You start typing, send, or switch chats: everything finishes at once (like skipping text in the game).
-                    if (payload.type === "TYPING_START_LOCAL" || payload.type === "CHANNEL_SELECT") {
+                    if (payload.type === "TYPING_START_LOCAL") {
                         if (typing.size) finishAll();
+                        return undefined;
+                    }
+                    // Only a real switch to another chat (Discord also re-sends the current one).
+                    if (payload.type === "CHANNEL_SELECT") {
+                        const leaving = [...typing.values()].some(t => t.channelId !== payload.channelId);
+                        if (leaving) finishAll();
                         return undefined;
                     }
                     if (payload.type !== "MESSAGE_CREATE") return undefined;
