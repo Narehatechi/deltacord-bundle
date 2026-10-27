@@ -78,8 +78,33 @@ function isBadExports(exports: any) {
         || (exports.default?.[Symbol.toStringTag] === "IntlMessagesProxy");
 }
 
+const loadWatchers = new Set<(exports: any, id: Metro.ModuleID) => void>();
+
+/**
+ * Calls `cb` with each Discord module as Discord itself loads it, and with those already loaded.
+ * Never loads a module early (unlike find*, which can load every module when its cache is empty).
+ * Returns how to stop watching.
+ */
+export function onModuleLoaded(cb: (exports: any, id: Metro.ModuleID) => void): () => void {
+    for (const id in metroModules) {
+        const m = metroModules[id];
+        if (!m?.isInitialized || m.hasError || blacklistedIds.has(Number(id))) continue;
+        try {
+            cb(m.publicModule?.exports, Number(id));
+        } catch { }
+    }
+    loadWatchers.add(cb);
+    return () => void loadWatchers.delete(cb);
+}
+
 function onModuleRequire(moduleExports: any, id: Metro.ModuleID) {
     indexExportsFlags(id, moduleExports);
+
+    for (const watch of loadWatchers) {
+        try {
+            watch(moduleExports, id);
+        } catch { }
+    }
 
     // Temporary
     moduleExports.initSentry &&= () => undefined;

@@ -10,7 +10,7 @@
 import { callNative } from "@lib/api/native/bridge";
 import { instead } from "@lib/api/patcher";
 import { dismissAlert, openAlert } from "@lib/ui/alerts";
-import { findByProps } from "@metro/wrappers";
+import { onModuleLoaded } from "@metro/internals/modules";
 import { useMemo, useRef, useState } from "react";
 import { Dimensions, Image, Modal, PanResponder, Pressable, Text, View } from "react-native";
 
@@ -206,12 +206,7 @@ async function crop(options: CropOptions): Promise<any> {
     });
 }
 
-export function patchCropper(): () => void {
-    const picker = findByProps("launchCropper");
-    if (typeof picker?.launchCropper !== "function") {
-        console.error("[Deltacord] Couldn't find Discord's image cropper");
-        return () => { };
-    }
+function patch(picker: any): () => void {
     return instead("launchCropper", picker, async (args: any[], orig: Function) => {
         const options: CropOptions = args[0] ?? {};
         if (!options.uri) return orig(...args);
@@ -224,4 +219,30 @@ export function patchCropper(): () => void {
             return orig(...args);
         }
     });
+}
+
+/**
+ * Patches Discord's cropper when Discord loads it (usually when you edit your profile).
+ * It must not be looked up at startup: an uncached lookup loads every Discord module early,
+ * which broke the app after updating.
+ */
+export function patchCropper(): () => void {
+    let unpatch: (() => void) | undefined;
+    const stop = onModuleLoaded(exports => {
+        if (unpatch || !exports || typeof exports !== "object") return;
+        const target = typeof exports.launchCropper === "function" ? exports
+            : typeof exports.default?.launchCropper === "function" ? exports.default : null;
+        if (!target) return;
+        try {
+            unpatch = patch(target);
+        } catch (e) {
+            console.error("[Deltacord] Couldn't set up the image cropper", e);
+            unpatch = () => { };
+        }
+        queueMicrotask(() => stop());
+    });
+    return () => {
+        stop();
+        unpatch?.();
+    };
 }
