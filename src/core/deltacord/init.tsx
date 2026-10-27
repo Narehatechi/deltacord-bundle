@@ -79,6 +79,12 @@ async function showCrashNotice() {
 
 export function initDeltacordLate() {
     markReady();
+    // Avatars and banners: Deltacord's cropper (Discord's doesn't open in the patched app).
+    try {
+        require("./cropper").patchCropper();
+    } catch (e) {
+        console.error("[Deltacord] Couldn't set up the image cropper", e);
+    }
     // A launch that got stuck is reported quietly: Doctor > Copy report has the details.
     if (isFeatureOn("crashguard")) showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
     // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
