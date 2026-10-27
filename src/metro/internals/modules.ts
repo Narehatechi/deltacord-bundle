@@ -179,7 +179,14 @@ function onModuleRequire(moduleExports: any, id: Metro.ModuleID) {
 
     const subs = moduleSubscriptions.get(Number(id));
     if (subs) {
-        subs.forEach(s => s());
+        // One failing subscriber (a patch waiting for this module) must not break Discord's load.
+        subs.forEach(s => {
+            try {
+                s();
+            } catch (e) {
+                console.error(`[Deltacord] A patch waiting for module ${id} failed`, e);
+            }
+        });
         moduleSubscriptions.delete(Number(id));
     }
 }

@@ -31,7 +31,13 @@ function create(fn: Function) {
             delayCallback(target => {
                 if (cancel) return;
                 args[1] = target;
-                unpatch = fn.apply(this, args);
+                // This runs while Discord is loading the module: a patch that can't apply must
+                // not throw into Discord (it took whole screens down), so it's skipped instead.
+                try {
+                    unpatch = fn.apply(this, args);
+                } catch (e) {
+                    console.error(`[Deltacord] A delayed patch of ${String(args[0])} couldn't apply`, e);
+                }
             });
 
             return () => unpatch();
