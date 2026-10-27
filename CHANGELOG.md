@@ -1,3 +1,10 @@
+## [1.28.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.1...v1.28.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* chat crashing with "render is not a function" ([59b8595](https://github.com/Narehatechi/deltacord-bundle/commit/59b8595e56214f5b0ab1c3e0799e7a20214c611b))
+
 ## [1.28.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.0...v1.28.1) (2026-10-27)
 
 
