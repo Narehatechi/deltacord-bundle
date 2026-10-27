@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.3...v1.28.0) (2026-10-27)
+
+
+### Features
+
+* Deltacord's own image cropper for avatars and banners ([282eff8](https://github.com/Narehatechi/deltacord-bundle/commit/282eff801384f51f72476400c4b2ad959e4c5826))
+
 ## [1.27.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.2...v1.27.3) (2026-10-27)
 
 
