@@ -1,3 +1,10 @@
+## [1.28.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.0...v1.28.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* crashes after updating, from the image cropper lookup ([edf15ac](https://github.com/Narehatechi/deltacord-bundle/commit/edf15ac0d9421eec37bafff7ca6a446ac0a16986))
+
 # [1.28.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.3...v1.28.0) (2026-10-27)
 
 
