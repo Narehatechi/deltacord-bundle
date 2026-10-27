@@ -1,3 +1,10 @@
+## [1.27.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.2...v1.27.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* Typewriter voices no longer stop and start messages over ([e619ed2](https://github.com/Narehatechi/deltacord-bundle/commit/e619ed250bffdc38a8d4cde33416824acc3c73a7))
+
 ## [1.27.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.27.1...v1.27.2) (2026-10-25)
 
 
