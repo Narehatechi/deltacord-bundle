@@ -1,3 +1,10 @@
+## [1.28.13](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.12...v1.28.13) (2026-10-28)
+
+
+### Bug Fixes
+
+* Deltacord runs on iPhone without the Android module ([8b23a3f](https://github.com/Narehatechi/deltacord-bundle/commit/8b23a3fce3c7c66e80bb06baef23cfeb38187274))
+
 ## [1.28.12](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.11...v1.28.12) (2026-10-28)
 
 
