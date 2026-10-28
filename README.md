@@ -33,7 +33,7 @@
 [![3-Clause BSD License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/6zm6yY5RrE)
 
-A client modification for Discord Android, forked from [Revenge](https://github.com/revenge-mod) (a continuation of [Bunny](https://github.com/pyoncord/Bunny)), with an Undertale/Deltarune heart.
+A client modification for Discord on Android and iPhone (beta), forked from [Revenge](https://github.com/revenge-mod) (a continuation of [Bunny](https://github.com/pyoncord/Bunny)), with an Undertale/Deltarune heart.
 
 ## 💪 Features
 
@@ -80,6 +80,30 @@ If your phone is rooted with an Xposed framework (LSPosed, [Vector](https://gith
 1. Download and install the [latest DeltacordXposed module](https://github.com/Narehatechi/deltacord-xposed/releases/latest) (the `app-release.apk`).
 2. In your Xposed manager, enable the module for **Discord**.
 3. Force-stop Discord and open it again.
+
+### iPhone (beta)
+
+> [!IMPORTANT]
+> The iPhone version is a **beta that hasn't been tested on a real iPhone yet**. Some features need the Android module and aren't on iPhone: Typewriter's fast sound player and sound-file import, Deltacord's own image cropper (Discord's own works on iPhone), the startup animation and automatic crash recovery. If something breaks, tell us in the [Discord server](https://discord.gg/6zm6yY5RrE).
+
+You add Deltacord to Discord's app yourself with a sideloading tool, using your own Apple ID. You need:
+- A computer (Windows or Mac) with [Sideloadly](https://sideloadly.io), or an on-iPhone signer such as Feather if you have a certificate.
+- A **decrypted Discord `.ipa`** file. Deltacord doesn't provide one.
+- The Deltacord tweak: from the [latest iPhone release](https://github.com/Narehatechi/deltacord-iphone/releases), download `Deltacord-<version>.deb` (or `Deltacord.dylib` if your tool only takes .dylib files).
+
+**With Sideloadly:**
+1. Connect your iPhone to the computer and open Sideloadly.
+2. Drag the Discord `.ipa` into Sideloadly and enter your Apple ID.
+3. Open **Advanced options**, tick **Inject dylibs/frameworks**, tap **+dylib/deb/bundle** and pick the Deltacord file you downloaded.
+4. Press **Start**. If Discord from the App Store is installed, delete it first (your account and servers are safe; they're online), or change the **Bundle ID** in Advanced options to keep both (notifications may not work for the copy with a changed ID).
+5. On your iPhone, go to **Settings › General › VPN & Device Management**, tap your Apple ID and **Trust** it. On iOS 16 or newer, also turn on **Settings › Privacy & Security › Developer Mode** when asked.
+6. Open Discord and log in. The first start downloads Deltacord, so it can take a few seconds longer.
+
+**Good to know:**
+- With a free Apple ID, sideloaded apps stop opening after **7 days**. Run Sideloadly again with the same files to refresh it (your login and settings are kept).
+- **Jailbroken?** Install the `.deb` with your package manager (Sileo, Zebra) instead.
+- **Recovery menu:** shake your phone for about a second to turn on Safe Mode, reload or pick another Deltacord version, or delete plugins and themes.
+- Deltacord updates itself: each start checks for a new version.
 
 ## 📚 Everything else
 
