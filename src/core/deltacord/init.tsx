@@ -79,9 +79,10 @@ async function showCrashNotice() {
 
 export function initDeltacordLate() {
     markReady();
-    // Avatars and banners: Deltacord's cropper (Discord's doesn't open in the patched app).
+    // Avatars and banners: Deltacord's cropper (Discord's doesn't open in the patched Android
+    // app). On iPhone Discord's own cropper works, and ours needs the Android module.
     try {
-        require("./cropper").patchCropper();
+        if (require("@lib/api/native/bridge").hasNativeBridge()) require("./cropper").patchCropper();
     } catch (e) {
         console.error("[Deltacord] Couldn't set up the image cropper", e);
     }

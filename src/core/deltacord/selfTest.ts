@@ -113,6 +113,7 @@ export function runSelfTest(): SelfTestCheck[] {
         ["Sending messages", () => fn(messageUtil, "sendMessage")],
         ["Bot replies (only you see)", () => fn(messageUtil, "sendBotMessage")],
         ["Image cropper (avatars, banners)", () => {
+            if (!require("@lib/api/native/bridge").hasNativeBridge()) return "Discord's own (iPhone)";
             const { cropperStatus } = require("@core/deltacord/cropper");
             const calls = Object.entries(cropperStatus.calls as Record<string, number>).map(([n, c]) => `${n}×${c}`).join(", ") || "none yet";
             if (cropperStatus.lastError) return `last try failed: ${cropperStatus.lastError} · Discord called: ${calls}`;
