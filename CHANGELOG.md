@@ -1,3 +1,10 @@
+## [1.28.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.2...v1.28.3) (2026-10-28)
+
+
+### Bug Fixes
+
+* the image cropper says why when it can't open ([78232f4](https://github.com/Narehatechi/deltacord-bundle/commit/78232f429a6156cbd828213f740cbcf6cf38b69a))
+
 ## [1.28.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.1...v1.28.2) (2026-10-27)
 
 
