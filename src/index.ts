@@ -16,6 +16,7 @@ import { patchCommands } from "@lib/api/commands";
 import { initDebugger } from "@lib/api/debug";
 import { injectFluxInterceptor } from "@lib/api/flux";
 import { patchJsx } from "@lib/api/react/jsx";
+import { patchToasts } from "@lib/ui/toasts";
 import { logger } from "@lib/utils/logger";
 import { patchSettings } from "@ui/settings";
 

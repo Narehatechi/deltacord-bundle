@@ -1,0 +1,9 @@
+diff a/src/index.ts b/src/index.ts	(rejected hunks)
+@@ -29,6 +30,7 @@ export default async () => {
+         initSettings(),
+         initFixes(),
+         patchErrorBoundary(),
++        patchToasts(),
+         updatePlugins()
+     ]).then(
+         // Push them all to unloader

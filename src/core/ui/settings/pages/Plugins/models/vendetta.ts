@@ -1,7 +1,8 @@
 import { VdPluginManager, VendettaPlugin } from "@core/vendetta/plugins";
 import { useProxy } from "@core/vendetta/storage";
-
 import { UnifiedPluginModel } from ".";
+import { showToast } from "@lib/ui/toasts";
+import { findAssetId } from "@lib/api/assets";
 
 export default function unifyVdPlugin(vdPlugin: VendettaPlugin): UnifiedPluginModel {
     return {

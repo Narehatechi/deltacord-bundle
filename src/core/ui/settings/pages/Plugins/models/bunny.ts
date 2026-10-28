@@ -4,6 +4,8 @@ import { BunnyPluginManifest } from "@lib/addons/plugins/types";
 import { useObservable } from "@lib/api/storage";
 
 import { UnifiedPluginModel } from ".";
+import { findAssetId } from "@lib/api/assets";
+import { showToast } from "@lib/ui/toasts";
 
 export default function unifyBunnyPlugin(manifest: BunnyPluginManifest): UnifiedPluginModel {
     return {
