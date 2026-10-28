@@ -336,8 +336,12 @@ function patchPicker(target: any, name: string): Array<() => void> {
             const cropped = await crop({ uri, width, height, mimeType: mime });
             return { ...result, base64: `data:${cropped.mime};base64,${cropped.data}`, mimeType: cropped.mime };
         } catch (e: any) {
-            // Cancelled in our cropper: Discord treats that like cancelling the picker.
-            if (e?.code === "E_PICKER_CANCELLED") throw e;
+            // Cancelled in our cropper: like cancelling Discord's picker. openImagePicker never
+            // throws (it answers { errorStr: "Cancelled" }); the Unhandled one throws.
+            if (e?.code === "E_PICKER_CANCELLED") {
+                if (name === "openImagePicker") return { errorStr: "Cancelled" };
+                throw e;
+            }
             cropperStatus.lastError = reason(e);
             try {
                 showToast(`Deltacord's cropper couldn't open: ${cropperStatus.lastError}`);
@@ -381,9 +385,10 @@ export function patchCropper(): () => void {
         const fresh = WATCHED.filter(name => typeof target[name] === "function" && !isOurs(target[name]));
         if (!fresh.length) return;
         undo.push(...patchObject(target));
-        // The wrapper picks the outermost picker: Unhandled is the one doing the work.
+        // Both: openImagePicker calls the Unhandled one directly (not through this object), so
+        // patching only Unhandled is never reached. pickerDepth keeps it to one crop.
+        undo.push(...patchPicker(target, "openImagePicker"));
         undo.push(...patchPicker(target, "openImagePickerUnhandled"));
-        if (typeof target.openImagePickerUnhandled !== "function") undo.push(...patchPicker(target, "openImagePicker"));
         undo.push(...countCalls(target, fresh));
     };
     const stop = onModuleLoaded(exports => {
