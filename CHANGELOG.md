@@ -1,3 +1,10 @@
+## [1.28.8](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.7...v1.28.8) (2026-10-28)
+
+
+### Bug Fixes
+
+* Typewriter is smooth, doesn't skip when the phone lags, and is a bit faster ([d280349](https://github.com/Narehatechi/deltacord-bundle/commit/d280349d45b5d5a04160c9872d105c0773f1a2eb))
+
 ## [1.28.7](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.6...v1.28.7) (2026-10-28)
 
 
