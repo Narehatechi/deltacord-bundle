@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.13...v1.29.0) (2026-10-28)
+
+
+### Features
+
+* Deltacord Manager can check on Deltacord and change it ([e1971aa](https://github.com/Narehatechi/deltacord-bundle/commit/e1971aa25de1bef5aad40fb0825d2917f9c229dd))
+
 ## [1.28.13](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.12...v1.28.13) (2026-10-28)
 
 
