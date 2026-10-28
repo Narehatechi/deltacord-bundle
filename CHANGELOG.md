@@ -1,3 +1,10 @@
+## [1.28.5](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.4...v1.28.5) (2026-10-28)
+
+
+### Bug Fixes
+
+* avatars and banners open Deltacord's cropper on the picked picture ([7be3ba9](https://github.com/Narehatechi/deltacord-bundle/commit/7be3ba94814fbf54e19a502af57b1b08dd2cb2b2))
+
 ## [1.28.4](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.3...v1.28.4) (2026-10-28)
 
 
