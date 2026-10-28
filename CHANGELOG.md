@@ -1,3 +1,10 @@
+## [1.28.7](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.6...v1.28.7) (2026-10-28)
+
+
+### Bug Fixes
+
+* Typewriter types at the game's pace and doesn't cut messages off ([0d1e331](https://github.com/Narehatechi/deltacord-bundle/commit/0d1e331a7d88430ad00cdab00477448acf4ca050))
+
 ## [1.28.6](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.5...v1.28.6) (2026-10-28)
 
 
