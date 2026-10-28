@@ -11,12 +11,6 @@
     >
   </picture>
   <br>
-  <a href="https://Narehatechi.github.io/">
-       <picture>
-           <source height="32px" media="(prefers-color-scheme: dark)" srcset="assets/logo/logo-dark.svg" />
-           <img height="32px" src="assets/logo/logo-light.svg" />
-       </picture>
-   </a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
    <a href="https://github.com/Narehatechi">
        <picture>
            <source height="32px" media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/13122796/178032563-d4e084b7-244e-4358-af50-26bde6dd4996.png" />
@@ -37,6 +31,7 @@
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/Narehatechi/deltacord-bundle/release.yml)
 [![3-Clause BSD License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/6zm6yY5RrE)
 
 A client modification for Discord Android, forked from [Revenge](https://github.com/revenge-mod) (a continuation of [Bunny](https://github.com/pyoncord/Bunny)), with an Undertale/Deltarune heart.
 
@@ -57,14 +52,34 @@ A client modification for Discord Android, forked from [Revenge](https://github.
 - **Extras**: optional 8-bit text blips and ★ Saved toasts (original sounds).
 - **Keeps up with Revenge**: a daily job brings in Revenge's fixes, renamed for Deltacord, as a pull request.
 
-## ⬇️ Download
+## ⬇️ Install
 
-This repository releases JavaScript bundles for loaders to execute. These are the official Deltacord loaders:
+> [!WARNING]
+> Deltacord is a modified Discord app. Using modified clients is against Discord's Terms of Service. Accounts are very rarely banned for it, but it can happen: use Deltacord at your own risk.
 
-### Android
+### Android (no root needed)
 
-- **🩹 Root with Xposed**: [DeltacordXposed](https://github.com/Narehatechi/deltacord-xposed/releases/latest)
-- **📵 Non-root**: [Deltacord Manager](https://github.com/Narehatechi/deltacord-manager/releases/latest)
+You need Android 9 or newer. Deltacord installs as its own app next to Discord, so your normal Discord app stays untouched.
+
+1. **Download Deltacord Manager.** On your phone, open the [latest Manager release](https://github.com/Narehatechi/deltacord-manager/releases/latest) and download the file ending in `.apk`.
+2. **Install it.** Open the downloaded file. If Android asks, allow your browser (or file manager) to **install unknown apps**, then tap **Install**.
+3. **Install Deltacord.** Open **Deltacord Manager** and tap **Install**. It downloads Discord, adds Deltacord to it and installs the result. This takes a minute or two; keep the Manager open until it says **Installed successfully**.
+4. **Open Deltacord** (from the Manager's **Launch** button or your app drawer) and log in. Deltacord's intro plays the first time it starts.
+
+**Updating:** Deltacord updates itself when you open it. When the Manager says a new version is available, open it and tap **Update** to get the newest Discord and module.
+
+**If something goes wrong:**
+- *"Installation was blocked"* or nothing happens: allow the Manager to install unknown apps (Settings › Apps › Deltacord Manager › Install unknown apps), then try again.
+- *"Conflicts with an existing app"*: uninstall the old Deltacord (not your normal Discord) from the Manager's home screen, then install again.
+- *Deltacord crashes or won't start*: if it closes twice in a row while opening, the next start is in **Safe Mode** with plugins off, and it tells you which plugin caused it. In Deltacord's settings, **Doctor** checks everything and can copy a report to send in the [Discord server](https://discord.gg/6zm6yY5RrE).
+
+### Android with root (Xposed)
+
+If your phone is rooted with an Xposed framework (LSPosed, [Vector](https://github.com/JingMatrix/Vector)), you can load Deltacord into the official Discord app instead:
+
+1. Download and install the [latest DeltacordXposed module](https://github.com/Narehatechi/deltacord-xposed/releases/latest) (the `app-release.apk`).
+2. In your Xposed manager, enable the module for **Discord**.
+3. Force-stop Discord and open it again.
 
 ## 📚 Everything else
 
