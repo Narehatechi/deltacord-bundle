@@ -8,7 +8,7 @@
  * work, Discord's own cropper is used as before.
  */
 import { callNative } from "@lib/api/native/bridge";
-import { instead } from "@lib/api/patcher";
+import { before, instead } from "@lib/api/patcher";
 import { dismissAlert, openAlert } from "@lib/ui/alerts";
 import { onModuleLoaded } from "@metro/internals/modules";
 import { showToast } from "@lib/ui/toasts";
@@ -31,7 +31,15 @@ interface CropOptions {
 interface Info { width: number; height: number; mime: string; }
 
 /** What the cropper has done this session (for Doctor's self-test). */
-export const cropperStatus = { patched: false, hooks: [] as string[], opened: 0, saved: 0, lastError: "" };
+export const cropperStatus = {
+    patched: false,
+    hooks: [] as string[],
+    opened: 0,
+    saved: 0,
+    lastError: "",
+    /** Which of Discord's image functions ran this session, and how often (for Doctor). */
+    calls: {} as Record<string, number>,
+};
 
 /** A plain reason for a failure, pointing at the module when it's too old to crop. */
 function reason(e: any): string {
@@ -224,7 +232,12 @@ async function crop(options: CropOptions): Promise<any> {
     });
 }
 
-const MARK = Symbol.for("deltacord.cropper");
+/**
+ * The patched functions (spitroast's proxies). A set, not a mark on the function: a mark would
+ * land on Discord's original underneath, and a module still holding that original would be skipped.
+ */
+const ours = new WeakSet<object>();
+const isOurs = (fn: any) => typeof fn === "function" && ours.has(fn);
 /** True while Discord's own cropper is running as a fallback, so ours doesn't catch it again. */
 let bypass = false;
 
@@ -268,12 +281,10 @@ function patchObject(target: any): Array<() => void> {
     for (const [name, read] of Object.entries(TARGETS)) {
         const fn = target?.[name];
         // Already ours (a module that re-exports a patched function): leave it.
-        if (typeof fn !== "function" || fn[MARK]) continue;
+        if (typeof fn !== "function" || isOurs(fn)) continue;
         try {
             undo.push(instead(name, target, (args: any[], orig: Function) => cropOrFallback(read(args[0] ?? {}), () => orig(...args))));
-            try {
-                target[name][MARK] = true;
-            } catch { }
+            ours.add(target[name]);
             cropperStatus.patched = true;
             if (!cropperStatus.hooks.includes(name)) cropperStatus.hooks.push(name);
         } catch (e) {
@@ -283,17 +294,101 @@ function patchObject(target: any): Array<() => void> {
     return undo;
 }
 
+/** Discord's image functions we only count, so Doctor shows which ones a version really uses. */
+const WATCHED = ["openImagePicker", "openImagePickerUnhandled", "launchImageLibrary", "launchImageLibraryAsync", "openPicker", "launchCropper", "openCropper"];
+
+/** True while a picker we cropped after is running, so an inner picker isn't cropped twice. */
+let pickerDepth = 0;
+
+/** Animated pictures stay whole (cropping would freeze them), as Discord does. */
+const ANIMATED = /image\/(gif|webp|avif)/i;
+
 /**
- * Patches Discord's crop functions as Discord loads them (usually when you edit your profile),
- * in every module that has them. They must not be looked up at startup: an uncached lookup
- * loads every Discord module early, which broke the app after updating.
+ * Discord's image picker for avatars, banners and icons: openImagePicker(Unhandled)({ width,
+ * height } or { size }) resolves { base64: "data:...", mimeType }. If Discord didn't let you crop
+ * inside it (its cropper doesn't open in the patched app), Deltacord's cropper opens on the
+ * picture it chose, and the cropped picture is returned instead.
+ */
+function patchPicker(target: any, name: string): Array<() => void> {
+    const fn = target?.[name];
+    if (typeof fn !== "function" || isOurs(fn)) return [];
+    const undo = instead(name, target, async (args: any[], orig: Function) => {
+        const options = args[0] ?? {};
+        const width = options.size ?? options.width;
+        const height = options.size ?? options.height;
+        if (pickerDepth > 0 || !width || !height) return orig(...args);
+        const openedBefore = cropperStatus.opened;
+        const errorBefore = cropperStatus.lastError;
+        pickerDepth++;
+        let result: any;
+        try {
+            result = await orig(...args);
+        } finally {
+            pickerDepth--;
+        }
+        // Our cropper already ran inside (launchCropper/openCropper were reached), or nothing picked.
+        if (cropperStatus.opened !== openedBefore || cropperStatus.lastError !== errorBefore) return result;
+        const uri = result?.base64;
+        if (typeof uri !== "string" || !uri.startsWith("data:")) return result;
+        const mime = result.mimeType ?? uri.slice(5, uri.indexOf(";"));
+        if (ANIMATED.test(mime)) return result;
+        try {
+            const cropped = await crop({ uri, width, height, mimeType: mime });
+            return { ...result, base64: `data:${cropped.mime};base64,${cropped.data}`, mimeType: cropped.mime };
+        } catch (e: any) {
+            // Cancelled in our cropper: Discord treats that like cancelling the picker.
+            if (e?.code === "E_PICKER_CANCELLED") throw e;
+            cropperStatus.lastError = reason(e);
+            try {
+                showToast(`Deltacord's cropper couldn't open: ${cropperStatus.lastError}`);
+            } catch { }
+            return result;
+        }
+    });
+    ours.add(target[name]);
+    if (!cropperStatus.hooks.includes(name)) cropperStatus.hooks.push(name);
+    cropperStatus.patched = true;
+    return [undo];
+}
+
+function countCalls(target: any, names: string[]): Array<() => void> {
+    const undo: Array<() => void> = [];
+    for (const name of names) {
+        if (typeof target?.[name] !== "function") continue;
+        try {
+            undo.push(before(name, target, () => {
+                cropperStatus.calls[name] = (cropperStatus.calls[name] ?? 0) + 1;
+            }));
+        } catch { }
+    }
+    return undo;
+}
+
+/**
+ * Patches Discord's image picking and crop functions as Discord loads them (usually when you
+ * edit your profile), in every module that has them. They must not be looked up at startup: an
+ * uncached lookup loads every Discord module early, which broke the app after updating.
  */
 export function patchCropper(): () => void {
     const undo: Array<() => void> = [];
+    const seen = new WeakSet<object>();
+    const handle = (target: any) => {
+        if (!target || (typeof target !== "object" && typeof target !== "function") || seen.has(target)) return;
+        seen.add(target);
+        if (!WATCHED.some(name => typeof target[name] === "function")) return;
+        // Functions another module already re-exported from a patched one are ours: count and
+        // patch only the rest (so nothing is wrapped twice).
+        const fresh = WATCHED.filter(name => typeof target[name] === "function" && !isOurs(target[name]));
+        if (!fresh.length) return;
+        undo.push(...patchObject(target));
+        // The wrapper picks the outermost picker: Unhandled is the one doing the work.
+        undo.push(...patchPicker(target, "openImagePickerUnhandled"));
+        if (typeof target.openImagePickerUnhandled !== "function") undo.push(...patchPicker(target, "openImagePicker"));
+        undo.push(...countCalls(target, fresh));
+    };
     const stop = onModuleLoaded(exports => {
-        if (!exports || (typeof exports !== "object" && typeof exports !== "function")) return;
-        undo.push(...patchObject(exports));
-        if (exports.default && exports.default !== exports) undo.push(...patchObject(exports.default));
+        handle(exports);
+        if (exports?.default && exports.default !== exports) handle(exports.default);
     });
     return () => {
         stop();

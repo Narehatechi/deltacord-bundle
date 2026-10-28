@@ -111,8 +111,9 @@ export function runSelfTest(): SelfTestCheck[] {
         ["Bot replies (only you see)", () => fn(messageUtil, "sendBotMessage")],
         ["Image cropper (avatars, banners)", () => {
             const { cropperStatus } = require("@core/deltacord/cropper");
-            if (cropperStatus.lastError) return `last try failed: ${cropperStatus.lastError}`;
-            if (cropperStatus.patched) return `ready (${cropperStatus.hooks.join(", ")}) · opened ${cropperStatus.opened}, saved ${cropperStatus.saved}`;
+            const calls = Object.entries(cropperStatus.calls as Record<string, number>).map(([n, c]) => `${n}×${c}`).join(", ") || "none yet";
+            if (cropperStatus.lastError) return `last try failed: ${cropperStatus.lastError} · Discord called: ${calls}`;
+            if (cropperStatus.patched) return `ready (${cropperStatus.hooks.join(", ")}) · opened ${cropperStatus.opened}, saved ${cropperStatus.saved} · Discord called: ${calls}`;
             return "waiting for Discord to load its image picker (open Edit Profile, then run Doctor again)";
         }],
         ["Message changes applied", () => `${sendStats.sent}${sendStats.failed ? ` (${sendStats.failed} failed)` : ""}`],
