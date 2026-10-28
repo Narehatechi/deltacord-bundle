@@ -10,6 +10,8 @@ on:
 jobs:
     check:
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
         steps:
           - uses: actions/checkout@v4
           - uses: oven-sh/setup-bun@v2
@@ -25,11 +27,13 @@ jobs:
             continue-on-error: true
           - name: Build
             run: bun run build
-          - name: Keep the reports
-            if: always()
-            uses: actions/upload-artifact@v4
-            with:
-              name: check-reports
-              path: |
-                tsc.txt
-                eslint.txt
+          - name: Keep the reports (on the ci-reports branch)
+            if: always() && github.event_name != 'pull_request'
+            run: |
+              mkdir -p /tmp/reports && cp tsc.txt eslint.txt /tmp/reports/ 2>/dev/null || true
+              cd /tmp/reports
+              git init -q && git checkout -q -b ci-reports
+              git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              echo "${{ github.sha }}" > commit.txt
+              git add -A && git commit -q -m "Check reports for ${{ github.sha }}"
+              git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-reports
