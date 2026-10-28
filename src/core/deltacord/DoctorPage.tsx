@@ -58,7 +58,7 @@ const ago = (ms: number) => {
     return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 };
 
-async function runChecks(): Promise<Check[]> {
+export async function runChecks(): Promise<Check[]> {
     const checks: Check[] = [];
     const add = (c: Check) => checks.push(c);
     const safe = async (group: string, label: string, fn: () => Promise<void> | void) => {

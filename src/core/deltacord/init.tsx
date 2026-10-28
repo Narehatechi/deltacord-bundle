@@ -86,6 +86,12 @@ export function initDeltacordLate() {
     } catch (e) {
         console.error("[Deltacord] Couldn't set up the image cropper", e);
     }
+    // Deltacord Manager can check on Deltacord and change things (see managerLink.ts).
+    try {
+        require("./managerLink").startManagerLink();
+    } catch (e) {
+        console.error("[Deltacord] Couldn't start the Manager link", e);
+    }
     // A launch that got stuck is reported quietly: Doctor > Copy report has the details.
     if (isFeatureOn("crashguard")) showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
     // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
