@@ -1,3 +1,10 @@
+## [1.28.4](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.3...v1.28.4) (2026-10-28)
+
+
+### Bug Fixes
+
+* the image cropper hooks in wherever Discord crops ([17ee4a1](https://github.com/Narehatechi/deltacord-bundle/commit/17ee4a1fe64082803608333abfa61fb65f79f5a4))
+
 ## [1.28.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.2...v1.28.3) (2026-10-28)
 
 
