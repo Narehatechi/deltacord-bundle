@@ -1,3 +1,10 @@
+## [1.28.10](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.9...v1.28.10) (2026-10-28)
+
+
+### Bug Fixes
+
+* installed plugins show their names in Doctor and crash notices ([daf7565](https://github.com/Narehatechi/deltacord-bundle/commit/daf7565876937aaaa851e01e8d0c70e0b66a0d01))
+
 ## [1.28.9](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.8...v1.28.9) (2026-10-28)
 
 
