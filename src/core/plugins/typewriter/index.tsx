@@ -29,7 +29,7 @@ const UserStore = findByStoreNameLazy("UserStore");
 const SelectedChannelStore = findByStoreNameLazy("SelectedChannelStore");
 
 interface TypewriterSettings {
-    speed?: "slow" | "normal" | "fast";
+    speed?: "slowest" | "slow" | "normal" | "fast";
     sound?: boolean;
     /** Your own messages type out too. */
     own?: boolean;
@@ -60,10 +60,12 @@ const store = wrapSync(createStorage<TypewriterSettings>(createMMKVBackend("DELT
 
 /** The game runs at 30 frames a second; text moves in whole frames. */
 const FRAME = 1000 / 30;
-/** Frames per letter: normal is one letter a frame, like the game. */
-const SPEEDS = { slow: 2, normal: 1, fast: 0.5 } as const;
-/** Long messages finish within this, however long they are. */
-const MAX_DURATION = 5000;
+/** Frames per letter: normal is one letter every two frames (15 a second), the game's dialogue pace. */
+const SPEEDS = { slowest: 4, slow: 3, normal: 2, fast: 1 } as const;
+/** Letters a second at each speed, for the settings page. */
+const PER_SECOND = (speed: keyof typeof SPEEDS) => Math.round(30 / SPEEDS[speed]);
+/** Only very long messages are squeezed, to finish within this. */
+const MAX_DURATION = 20000;
 const REDRAW_FLAG = 0x10000000;
 const TICK = Math.round(FRAME);
 /** A short beat before a message starts typing, like a text box opening. */
@@ -98,7 +100,7 @@ let ticker: ReturnType<typeof setInterval> | undefined;
 let lastSound = 0;
 
 /**
- * When each character appears, in frames like the game: one letter a frame at normal speed, a
+ * When each character appears, in frames like the game: one letter every two frames at normal speed, a
  * short pause after commas, a longer one after . ! ? (each dot of "..." pauses), and after line
  * breaks. No pause at the very end. Long messages are squeezed to finish in time.
  */
@@ -323,9 +325,10 @@ function tick() {
     if (!active) {
         const next = typing.entries().next().value as [string, Typing] | undefined;
         if (next) {
-            // A backlog speeds up so it never falls far behind the chat.
+            // Only a real pile-up speeds up (a little), so it doesn't fall far behind the chat.
             const backlog = typing.size - 1;
-            if (backlog >= 2) next[1].times = next[1].times.map(x => x / Math.min(4, backlog));
+            const hurry = backlog >= 8 ? 2 : backlog >= 4 ? 1.5 : 1;
+            if (hurry > 1) next[1].times = next[1].times.map(x => x / hurry);
             next[1].start = now + OPEN_DELAY;
             active = next;
         }
@@ -615,14 +618,14 @@ function TypewriterSettingsPage() {
     const [link, setLink] = useState("");
     const [busy, setBusy] = useState(false);
     const speed = store.speed ?? "normal";
-    const speeds: Array<keyof typeof SPEEDS> = ["slow", "normal", "fast"];
+    const speeds: Array<keyof typeof SPEEDS> = ["slowest", "slow", "normal", "fast"];
     return (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={16}>
                 <TableRowGroup title="Typing">
                     <TableRow
                         label="Speed"
-                        subLabel="Tap to change."
+                        subLabel={`${PER_SECOND(speed in SPEEDS ? speed : "normal")} letters a second. Tap to change.`}
                         trailing={<TableRow.TrailingText text={speed[0].toUpperCase() + speed.slice(1)} />}
                         onPress={() => void (store.speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length])}
                     />
@@ -769,7 +772,8 @@ export default defineCorePlugin({
             // so nothing is left mid-type or making sound in the background.
             (() => {
                 const sub = (require("react-native").AppState ?? ReactNative?.AppState)?.addEventListener?.("change", (state: string) => {
-                    if (state !== "active" && typing.size) finishAll();
+                    // Only really leaving ("background"); "inactive" also fires for the notification shade.
+                    if (state === "background" && typing.size) finishAll();
                 });
                 return () => sub?.remove?.();
             })(),
@@ -828,14 +832,11 @@ export default defineCorePlugin({
             ]),
             intercept(payload => {
                 try {
-                    // You start typing, send, or switch chats: everything finishes at once (like skipping text in the game).
-                    if (payload.type === "TYPING_START_LOCAL") {
-                        if (typing.size) finishAll();
-                        return undefined;
-                    }
-                    // Only a real switch to another chat (Discord also re-sends the current one).
+                    // Typing in the message box no longer skips (it cut messages off whenever you typed).
+                    // Only a real switch to another chat (Discord also re-sends the current one, and
+                    // some of these don't say which chat: those aren't a switch).
                     if (payload.type === "CHANNEL_SELECT") {
-                        const leaving = [...typing.values()].some(t => t.channelId !== payload.channelId);
+                        const leaving = !!payload.channelId && [...typing.values()].some(t => t.channelId !== payload.channelId);
                         if (leaving) finishAll();
                         return undefined;
                     }
