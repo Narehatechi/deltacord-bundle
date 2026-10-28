@@ -74,6 +74,13 @@ function Cropper({ options, info, onDone, onCancel }: {
     const [zoom, setZoom] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [busy, setBusy] = useState(false);
+    // The cropper hides itself when it's finished: closing it through Discord's alerts didn't
+    // always work, which left it on screen after DONE (the picture was saved behind it).
+    const [open, setOpen] = useState(true);
+    const cancel = () => {
+        setOpen(false);
+        onCancel();
+    };
     const live = useRef({ zoom: 1, x: 0, y: 0 });
     const gesture = useRef({ count: 0, zoom: 1, x: 0, y: 0, dist: 1, px: 0, py: 0 });
 
@@ -140,7 +147,7 @@ function Cropper({ options, info, onDone, onCancel }: {
     );
 
     return (
-        <Modal visible transparent={false} animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
+        <Modal visible={open} transparent={false} animationType="fade" onRequestClose={cancel} statusBarTranslucent>
             <View style={{ flex: 1, backgroundColor: "#000", alignItems: "center", justifyContent: "center", gap: 22 }}>
                 <Text style={{ color: "#FFFFFF", fontSize: 20, letterSpacing: 2, fontFamily: FONT_BOLD }}>EDIT IMAGE</Text>
                 <View
@@ -167,15 +174,18 @@ function Cropper({ options, info, onDone, onCancel }: {
                     {button("+", () => apply(live.current.zoom * 1.25, live.current.x, live.current.y))}
                 </View>
                 <View style={{ flexDirection: "row", gap: 12 }}>
-                    {button("CANCEL", onCancel)}
+                    {button("CANCEL", cancel)}
                     {button(busy ? "SAVING…" : "DONE", async () => {
+                        if (busy) return;
                         setBusy(true);
                         const scale = fit * live.current.zoom;
                         const l = (frameW - info.width * scale) / 2 + live.current.x;
                         const t = (frameH - info.height * scale) / 2 + live.current.y;
                         try {
                             await onDone({ x: -l / scale, y: -t / scale, w: frameW / scale, h: frameH / scale });
-                        } finally {
+                        } catch { } finally {
+                            // Done (or failed: the reason shows as a message): either way, close.
+                            setOpen(false);
                             setBusy(false);
                         }
                     }, "#FFFF00")}
@@ -212,11 +222,15 @@ async function crop(options: CropOptions): Promise<any> {
                     // Discord's size for the result (or the cropped area, capped).
                     const outW = options.width && options.height ? options.width : Math.min(2048, Math.round(rect.w));
                     const outH = options.width && options.height ? options.height : Math.round(outW * rect.h / rect.w);
-                    const result = await callNative(
-                        "deltacord.image.crop", options.uri,
-                        rect.x, rect.y, rect.w, rect.h, outW, outH,
-                        options.mimeType ?? info.mime ?? "image/png",
-                    );
+                    const result = await Promise.race([
+                        callNative(
+                            "deltacord.image.crop", options.uri,
+                            rect.x, rect.y, rect.w, rect.h, Math.round(outW), Math.round(outH),
+                            options.mimeType ?? info.mime ?? "image/png",
+                        ),
+                        new Promise<never>((_, fail) => setTimeout(() => fail(new Error("cropping took too long")), 30000)),
+                    ]);
+                    if (!result?.data) throw new Error("the module didn't return the cropped picture");
                     close();
                     cropperStatus.saved++;
                     resolve({
@@ -226,6 +240,7 @@ async function crop(options: CropOptions): Promise<any> {
                 } catch (e) {
                     close();
                     reject(e);
+                    throw e;
                 }
             }}
         />);
