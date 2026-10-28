@@ -1,3 +1,10 @@
+## [1.28.12](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.11...v1.28.12) (2026-10-28)
+
+
+### Bug Fixes
+
+* the fast sound player retries after failing once ([e3036bd](https://github.com/Narehatechi/deltacord-bundle/commit/e3036bd0b090a80d4d10b8938171aaf97b080a2e))
+
 ## [1.28.11](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.10...v1.28.11) (2026-10-28)
 
 
