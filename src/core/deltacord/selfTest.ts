@@ -34,8 +34,11 @@ const NEEDS: Record<string, Array<[string, () => boolean | string]>> = {
     ],
     "deltacord.tweaks": [
         ["Analytics (track)", () => !!findByProps("track", "trackMaker") || !!findByProps("trackWithMetadata")],
-        ["Gift button", () => fn(findByName("ChatInputActionButtonGift", false), "default")],
-        ["Apps button", () => fn(findByName("ChatInputActionButtonApps", false), "default")],
+        ["Gift & apps buttons", () => {
+            const { chatButtonsHidden } = require("@core/plugins/tweaks");
+            if (chatButtonsHidden.size) return `hidden: ${[...chatButtonsHidden].map((n: string) => n.replace("ChatInputActionButton", "")).join(", ")}`;
+            return "waiting for Discord to load the chat bar (open a chat, then run Doctor again)";
+        }],
         ["Chat row builder (timestamps)", () => fn(findByName("RowManager")?.prototype, "generate")],
     ],
     "deltacord.hiddenchannels": [

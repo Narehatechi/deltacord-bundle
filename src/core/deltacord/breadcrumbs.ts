@@ -306,6 +306,9 @@ function startHeartbeat() {
 /** Recorded stages, errors and what the patched app saw, as text to copy and send. */
 export async function stuckReportText(): Promise<string> {
     const launch = stuckLaunch;
+    // No stuck launch on record: nothing to report (the patched app's file is from an old launch
+    // and kept turning up in every report).
+    if (!launch) return "";
     const lines: string[] = ["Deltacord stuck-launch report", new Date().toISOString(), ""];
     if (launch) {
         lines.push(`Build ${launch.version}${launch.minimal ? " (minimal)" : ""} · opened: ${launch.opened} · plugins: ${launch.ready} · Discord ready: ${!!launch.uiReady} · alive ${Math.round((launch.aliveMs ?? 0) / 1000)}s`);

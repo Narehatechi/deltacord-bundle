@@ -239,7 +239,8 @@ export default function DoctorPage() {
                         onPress={async () => {
                             let stuck = "";
                             try {
-                                stuck = "\n\n" + await stuckReportText();
+                                const text = await stuckReportText();
+                                if (text) stuck = "\n\n" + text;
                             } catch { }
                             clipboard.setString(report(checks ?? []) + stuck);
                             showToast("Report copied", findAssetId("CopyIcon"));

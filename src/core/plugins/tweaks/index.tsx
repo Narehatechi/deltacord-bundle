@@ -8,6 +8,7 @@ import { intercept } from "@lib/api/flux";
 import { after, instead } from "@lib/api/patcher";
 import { findAssetId } from "@lib/api/assets";
 import { Stack, TableRow, TableRowGroup, TableSwitchRow, Text } from "@metro/common/components";
+import { onModuleLoaded } from "@metro/internals/modules";
 import { findByName, findByProps } from "@metro/wrappers";
 import { ScrollView } from "react-native";
 
@@ -73,6 +74,10 @@ const noTracking: Tweak = {
     },
 };
 
+const CHAT_BUTTONS = ["ChatInputActionButtonGift", "ChatInputActionButtonApps"];
+/** Which chat buttons are hidden (for Doctor's self-test). */
+export const chatButtonsHidden = new Set<string>();
+
 const hideChatButtons: Tweak = {
     id: "hideChatButtons",
     name: "Hide gift & apps buttons",
@@ -80,12 +85,40 @@ const hideChatButtons: Tweak = {
     icon: "GiftIcon",
     enabledByDefault: true,
     start() {
+        // Patched as Discord loads them, plain or wrapped (memo/forwardRef), so it works whichever
+        // way a Discord version ships them, without loading every module to find them.
         const undo: Array<() => unknown> = [];
-        for (const name of ["ChatInputActionButtonGift", "ChatInputActionButtonApps"]) {
-            const mod = findByName(name, false);
-            if (typeof mod?.default === "function") undo.push(instead("default", mod, () => null));
-        }
-        return all(...undo);
+        const names = new Set(CHAT_BUTTONS);
+        const nameOf = (c: any) => c?.displayName ?? c?.name;
+        const stop = onModuleLoaded(exports => {
+            const component = exports?.default;
+            if (!component) return;
+            try {
+                if (typeof component === "function" && names.has(nameOf(component))) {
+                    undo.push(instead("default", exports, () => null));
+                    chatButtonsHidden.add(nameOf(component));
+                } else if (typeof component === "object") {
+                    // memo(...) keeps it in .type, forwardRef(...) in .render.
+                    for (const key of ["type", "render"]) {
+                        const inner = component[key];
+                        if (typeof inner === "function" && names.has(nameOf(inner))) {
+                            undo.push(instead(key, component, () => null));
+                            chatButtonsHidden.add(nameOf(inner));
+                        }
+                    }
+                }
+            } catch { }
+        });
+        // (undo fills in as modules load, so it's read when undoing.)
+        return () => {
+            stop();
+            undo.forEach(u => {
+                try {
+                    u();
+                } catch { }
+            });
+            chatButtonsHidden.clear();
+        };
     },
 };
 
