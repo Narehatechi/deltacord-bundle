@@ -1,3 +1,10 @@
+## [1.28.11](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.10...v1.28.11) (2026-10-28)
+
+
+### Bug Fixes
+
+* hide the gift and apps buttons in newer Discord, and drop stale stuck reports ([f527ee2](https://github.com/Narehatechi/deltacord-bundle/commit/f527ee282aecc4ab93edb3eac64e006372aa2487))
+
 ## [1.28.10](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.9...v1.28.10) (2026-10-28)
 
 
