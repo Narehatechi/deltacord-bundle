@@ -7,6 +7,7 @@ import tsParser from "@typescript-eslint/parser";
 export default [{
     ignores: ["**/dist", "**/browser"],
 }, {
+    files: ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"],
     plugins: {
         "@typescript-eslint": typescriptEslint,
         "simple-import-sort": simpleImportSort,
