@@ -107,6 +107,8 @@ function fastId(source: string): Promise<number | null> {
                 soundStatus.fast = false;
                 soundStatus.error = String(e?.message ?? e).slice(0, 120);
                 console.warn("[Deltacord] Fast sound unavailable, using Discord's player", e);
+                // Try again later (it can fail while Discord is still starting), not never.
+                setTimeout(() => fastIds.delete(source), 30_000);
                 return null;
             }
         })());
