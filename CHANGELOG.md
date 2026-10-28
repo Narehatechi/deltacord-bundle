@@ -1,3 +1,10 @@
+## [1.28.9](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.8...v1.28.9) (2026-10-28)
+
+
+### Bug Fixes
+
+* the image cropper closes when you tap DONE ([e7985be](https://github.com/Narehatechi/deltacord-bundle/commit/e7985bead6306b95080fddc4d5ba77ab6b35b87a))
+
 ## [1.28.8](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.7...v1.28.8) (2026-10-28)
 
 
