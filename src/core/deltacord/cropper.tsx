@@ -11,6 +11,7 @@ import { callNative } from "@lib/api/native/bridge";
 import { instead } from "@lib/api/patcher";
 import { dismissAlert, openAlert } from "@lib/ui/alerts";
 import { onModuleLoaded } from "@metro/internals/modules";
+import { showToast } from "@lib/ui/toasts";
 import { useMemo, useRef, useState } from "react";
 import { Dimensions, Image, Modal, PanResponder, Pressable, Text, View } from "react-native";
 
@@ -28,6 +29,18 @@ interface CropOptions {
 }
 
 interface Info { width: number; height: number; mime: string; }
+
+/** What the cropper has done this session (for Doctor's self-test). */
+export const cropperStatus = { patched: false, opened: 0, saved: 0, lastError: "" };
+
+/** A plain reason for a failure, pointing at the module when it's too old to crop. */
+function reason(e: any): string {
+    const message = String(e?.message ?? e ?? "unknown error");
+    if (/bridge isn't available|unknown method|not (found|registered)|no such method|readAsDataURL|Cannot read|undefined/i.test(message)) {
+        return `the Deltacord module may be out of date; update it to 1927 or newer (${message})`;
+    }
+    return message;
+}
 
 const cancelled = () => Object.assign(new Error("User cancelled image selection"), { code: "E_PICKER_CANCELLED" });
 
@@ -166,8 +179,12 @@ function Cropper({ options, info, onDone, onCancel }: {
 
 /** Opens Deltacord's cropper; resolves like Discord's cropper does. */
 async function crop(options: CropOptions): Promise<any> {
-    const info: Info = await callNative("deltacord.image.info", options.uri);
-    if (!info?.width || !info?.height) throw new Error("No image size");
+    const info: Info = await Promise.race([
+        callNative("deltacord.image.info", options.uri),
+        new Promise<never>((_, fail) => setTimeout(() => fail(new Error("the module took too long to read the picture")), 10000)),
+    ]);
+    if (!info?.width || !info?.height) throw new Error("the module couldn't read the picture's size");
+    cropperStatus.opened++;
 
     return new Promise((resolve, reject) => {
         const close = () => {
@@ -193,6 +210,7 @@ async function crop(options: CropOptions): Promise<any> {
                         options.mimeType ?? info.mime ?? "image/png",
                     );
                     close();
+                    cropperStatus.saved++;
                     resolve({
                         ...result,
                         cropRect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.w), height: Math.round(rect.h) },
@@ -214,8 +232,13 @@ function patch(picker: any): () => void {
             return await crop(options);
         } catch (e: any) {
             if (e?.code === "E_PICKER_CANCELLED") throw e;
-            // Deltacord's cropper couldn't run (old module, odd picture): Discord's own, as before.
+            // Deltacord's cropper couldn't run (old module, odd picture): Discord's own, as before,
+            // but say why, so it isn't a silent "nothing happened".
+            cropperStatus.lastError = reason(e);
             console.warn("[Deltacord] Cropper fell back to Discord's", e);
+            try {
+                showToast(`Deltacord's cropper couldn't open: ${cropperStatus.lastError}`);
+            } catch { }
             return orig(...args);
         }
     });
@@ -235,7 +258,9 @@ export function patchCropper(): () => void {
         if (!target) return;
         try {
             unpatch = patch(target);
+            cropperStatus.patched = true;
         } catch (e) {
+            cropperStatus.lastError = `couldn't patch Discord's cropper: ${String((e as any)?.message ?? e)}`;
             console.error("[Deltacord] Couldn't set up the image cropper", e);
             unpatch = () => { };
         }
