@@ -112,7 +112,7 @@ export function runSelfTest(): SelfTestCheck[] {
         ["Image cropper (avatars, banners)", () => {
             const { cropperStatus } = require("@core/deltacord/cropper");
             if (cropperStatus.lastError) return `last try failed: ${cropperStatus.lastError}`;
-            if (cropperStatus.patched) return `ready · opened ${cropperStatus.opened}, saved ${cropperStatus.saved}`;
+            if (cropperStatus.patched) return `ready (${cropperStatus.hooks.join(", ")}) · opened ${cropperStatus.opened}, saved ${cropperStatus.saved}`;
             return "waiting for Discord to load its image picker (open Edit Profile, then run Doctor again)";
         }],
         ["Message changes applied", () => `${sendStats.sent}${sendStats.failed ? ` (${sendStats.failed} failed)` : ""}`],

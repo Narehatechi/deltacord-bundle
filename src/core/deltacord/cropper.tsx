@@ -31,7 +31,7 @@ interface CropOptions {
 interface Info { width: number; height: number; mime: string; }
 
 /** What the cropper has done this session (for Doctor's self-test). */
-export const cropperStatus = { patched: false, opened: 0, saved: 0, lastError: "" };
+export const cropperStatus = { patched: false, hooks: [] as string[], opened: 0, saved: 0, lastError: "" };
 
 /** A plain reason for a failure, pointing at the module when it's too old to crop. */
 function reason(e: any): string {
@@ -224,50 +224,79 @@ async function crop(options: CropOptions): Promise<any> {
     });
 }
 
-function patch(picker: any): () => void {
-    return instead("launchCropper", picker, async (args: any[], orig: Function) => {
-        const options: CropOptions = args[0] ?? {};
-        if (!options.uri) return orig(...args);
+const MARK = Symbol.for("deltacord.cropper");
+/** True while Discord's own cropper is running as a fallback, so ours doesn't catch it again. */
+let bypass = false;
+
+/** Runs Deltacord's cropper for these options, or Discord's original if ours can't. */
+async function cropOrFallback(options: CropOptions, fallback: () => any): Promise<any> {
+    if (bypass || !options.uri) return fallback();
+    try {
+        return await crop(options);
+    } catch (e: any) {
+        if (e?.code === "E_PICKER_CANCELLED") throw e;
+        // Deltacord's cropper couldn't run (old module, odd picture): Discord's own, as before,
+        // but say why, so it isn't a silent "nothing happened".
+        cropperStatus.lastError = reason(e);
+        console.warn("[Deltacord] Cropper fell back to Discord's", e);
         try {
-            return await crop(options);
-        } catch (e: any) {
-            if (e?.code === "E_PICKER_CANCELLED") throw e;
-            // Deltacord's cropper couldn't run (old module, odd picture): Discord's own, as before,
-            // but say why, so it isn't a silent "nothing happened".
-            cropperStatus.lastError = reason(e);
-            console.warn("[Deltacord] Cropper fell back to Discord's", e);
-            try {
-                showToast(`Deltacord's cropper couldn't open: ${cropperStatus.lastError}`);
-            } catch { }
-            return orig(...args);
+            showToast(`Deltacord's cropper couldn't open: ${cropperStatus.lastError}`);
+        } catch { }
+        bypass = true;
+        try {
+            return await fallback();
+        } finally {
+            bypass = false;
         }
-    });
+    }
 }
 
 /**
- * Patches Discord's cropper when Discord loads it (usually when you edit your profile).
- * It must not be looked up at startup: an uncached lookup loads every Discord module early,
- * which broke the app after updating.
+ * Discord's crop functions, and how to read their options:
+ * - launchCropper({ uri, width, height, mimeType }) (Discord's wrapper)
+ * - openCropper({ path, width, height, mime }) (the crop library underneath, which returns the
+ *   same { path, data, mime, width, height, cropRect } our cropper does)
+ */
+const TARGETS: Record<string, (o: any) => CropOptions> = {
+    launchCropper: o => ({ uri: o?.uri, width: o?.width, height: o?.height, mimeType: o?.mimeType, freeStyleCropEnabled: o?.freeStyleCropEnabled }),
+    openCropper: o => ({ uri: o?.path ?? o?.uri, width: o?.width, height: o?.height, mimeType: o?.mime ?? o?.mimeType, freeStyleCropEnabled: o?.freeStyleCropEnabled }),
+};
+
+/** Patches whichever crop functions this object has; returns the undo functions. */
+function patchObject(target: any): Array<() => void> {
+    const undo: Array<() => void> = [];
+    for (const [name, read] of Object.entries(TARGETS)) {
+        const fn = target?.[name];
+        // Already ours (a module that re-exports a patched function): leave it.
+        if (typeof fn !== "function" || fn[MARK]) continue;
+        try {
+            undo.push(instead(name, target, (args: any[], orig: Function) => cropOrFallback(read(args[0] ?? {}), () => orig(...args))));
+            try {
+                target[name][MARK] = true;
+            } catch { }
+            cropperStatus.patched = true;
+            if (!cropperStatus.hooks.includes(name)) cropperStatus.hooks.push(name);
+        } catch (e) {
+            cropperStatus.lastError = `couldn't patch Discord's ${name}: ${String((e as any)?.message ?? e)}`;
+        }
+    }
+    return undo;
+}
+
+/**
+ * Patches Discord's crop functions as Discord loads them (usually when you edit your profile),
+ * in every module that has them. They must not be looked up at startup: an uncached lookup
+ * loads every Discord module early, which broke the app after updating.
  */
 export function patchCropper(): () => void {
-    let unpatch: (() => void) | undefined;
+    const undo: Array<() => void> = [];
     const stop = onModuleLoaded(exports => {
-        if (unpatch || !exports || typeof exports !== "object") return;
-        const target = typeof exports.launchCropper === "function" ? exports
-            : typeof exports.default?.launchCropper === "function" ? exports.default : null;
-        if (!target) return;
-        try {
-            unpatch = patch(target);
-            cropperStatus.patched = true;
-        } catch (e) {
-            cropperStatus.lastError = `couldn't patch Discord's cropper: ${String((e as any)?.message ?? e)}`;
-            console.error("[Deltacord] Couldn't set up the image cropper", e);
-            unpatch = () => { };
-        }
-        queueMicrotask(() => stop());
+        if (!exports || (typeof exports !== "object" && typeof exports !== "function")) return;
+        undo.push(...patchObject(exports));
+        if (exports.default && exports.default !== exports) undo.push(...patchObject(exports.default));
     });
     return () => {
         stop();
-        unpatch?.();
+        undo.forEach(u => u());
     };
 }
