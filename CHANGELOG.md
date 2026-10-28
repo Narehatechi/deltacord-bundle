@@ -1,3 +1,10 @@
+## [1.28.6](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.5...v1.28.6) (2026-10-28)
+
+
+### Bug Fixes
+
+* the avatar and banner cropper opens from openImagePicker ([e7e2a53](https://github.com/Narehatechi/deltacord-bundle/commit/e7e2a537d7a2a610ed6d776d6ef33777e4716a7c))
+
 ## [1.28.5](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.4...v1.28.5) (2026-10-28)
 
 
