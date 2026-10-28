@@ -60,8 +60,13 @@ const store = wrapSync(createStorage<TypewriterSettings>(createMMKVBackend("DELT
 
 /** The game runs at 30 frames a second; text moves in whole frames. */
 const FRAME = 1000 / 30;
-/** Frames per letter: normal is one letter every two frames (15 a second), the game's dialogue pace. */
-const SPEEDS = { slowest: 4, slow: 3, normal: 2, fast: 1 } as const;
+/** Frames per letter: normal is 20 letters a second; fast is one a frame (30). */
+const SPEEDS = { slowest: 3, slow: 2, normal: 1.5, fast: 1 } as const;
+/** However late a tick runs (the phone was busy), typing moves on at most this much: lag pauses it, never skips ahead. */
+const MAX_STEP = 2 * (1000 / 30);
+/** The chat is redrawn at most this often; slower if redraws are slow on this phone. */
+const MIN_REDRAW_GAP = 50;
+const MAX_REDRAW_GAP = 150;
 /** Letters a second at each speed, for the settings page. */
 const PER_SECOND = (speed: keyof typeof SPEEDS) => Math.round(30 / SPEEDS[speed]);
 /** Only very long messages are squeezed, to finish within this. */
@@ -90,6 +95,13 @@ interface Typing {
     guildId?: string;
     /** When it started typing; null while it waits its turn. */
     start: number | null;
+    /** How far into the typing it is (ms): time that moves on smoothly, even when ticks run late. */
+    elapsed: number;
+    /** When the last tick ran, and when its row was last redrawn. */
+    lastTick: number;
+    lastRedraw: number;
+    /** Letters shown on screen (may trail `revealed` until the next redraw). */
+    shown: number;
     /** When each character of the text appears (ms after start). */
     times: number[];
     revealed: number;
@@ -312,6 +324,17 @@ function removeVoice(userId: string) {
 const describeVoice = (v: Voice) =>
     `${v.soundName ? `sound "${v.soundName}"` : v.soundUrl ? "own sound" : "default sound"}${v.pitch && v.pitch !== 1 ? `, pitch ${v.pitch}` : ""}`;
 
+let redrawGap = MIN_REDRAW_GAP;
+
+/** Redraws a row, and slows the redraw rate down on phones where a redraw is slow. */
+function timedRedraw(channelId: string, id: string, guildId?: string) {
+    const before = Date.now();
+    redraw(channelId, id, guildId);
+    const cost = Date.now() - before;
+    // About a third of the time spent redrawing, at most; eases back when it's quick again.
+    redrawGap = Math.min(MAX_REDRAW_GAP, Math.max(MIN_REDRAW_GAP, redrawGap * 0.8 + cost * 3 * 0.2));
+}
+
 function tick() {
     const now = Date.now();
     // One message types at a time, like dialogue: the next waits for the one before it.
@@ -336,15 +359,27 @@ function tick() {
     if (active) {
         const [id, t] = active;
         const text = t.text;
-        const n = revealedAt(t.times, now - (t.start ?? now));
-        const flashing = store.flash !== false && t.start !== null && now >= t.start && now - t.start < FLASH_MS + TICK;
-        if (n === t.revealed && flashing) redraw(t.channelId, id, t.guildId);
+        if (t.start !== null && now >= t.start) {
+            // Smooth time: a late tick (the phone was busy) moves on by at most MAX_STEP.
+            if (t.lastTick) t.elapsed += Math.min(now - t.lastTick, MAX_STEP);
+            t.lastTick = now;
+        }
+        const n = revealedAt(t.times, t.elapsed);
         if (n !== t.revealed) {
             // A new letter: its voice (spaces and punctuation stay silent).
             if ([...text.slice(t.revealed, n)].some(voiced)) playVoice(t.authorId);
             t.revealed = n;
-            if (n >= t.times.length) typing.delete(id);
-            redraw(t.channelId, id, t.guildId);
+        }
+        const done = n >= t.times.length;
+        const flashing = store.flash !== false && t.start !== null && now >= t.start && t.elapsed < FLASH_MS;
+        // Redraws are what's costly: at most one per gap, and always the last one.
+        if ((t.shown !== t.revealed || flashing) && (done || now - t.lastRedraw >= redrawGap)) {
+            t.shown = t.revealed;
+            t.lastRedraw = now;
+            if (done) typing.delete(id);
+            timedRedraw(t.channelId, id, t.guildId);
+        } else if (done && t.shown === t.revealed) {
+            typing.delete(id);
         }
     }
     if (!typing.size && ticker) {
@@ -415,6 +450,10 @@ function startTyping(message: any, guildId?: string) {
         start: null,
         times: schedule(text, SPEEDS[store.speed ?? "normal"] ?? SPEEDS.normal),
         revealed: 0,
+        elapsed: 0,
+        lastTick: 0,
+        lastRedraw: 0,
+        shown: 0,
     });
     ticker ??= setInterval(tick, TICK);
 }
@@ -456,7 +495,7 @@ function patchRows() {
                 content = [...shown, ...invisible(rest)];
 
                 // The text box opening: a white flash on the message that fades out.
-                const since = t.start === null ? -1 : Date.now() - t.start;
+                const since = t.start === null || Date.now() < t.start ? -1 : t.elapsed;
                 if (store.flash !== false && since >= 0 && since < FLASH_MS) {
                     const alpha = Math.round(0x40 * (1 - since / FLASH_MS)).toString(16).padStart(2, "0");
                     row.backgroundHighlight = {
