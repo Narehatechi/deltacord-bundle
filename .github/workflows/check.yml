@@ -1,0 +1,35 @@
+name: Check
+
+# Type check, lint and build on every push and pull request, so problems show before a release.
+on:
+    push:
+        branches: [main, dev]
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - uses: oven-sh/setup-bun@v2
+            with:
+              bun-version: latest
+          - name: Install dependencies
+            run: bun install --frozen-lockfile
+          - name: Type check
+            run: bunx tsc --noEmit -p . 2>&1 | tee tsc.txt; exit ${PIPESTATUS[0]}
+            continue-on-error: true
+          - name: Lint
+            run: bunx eslint ./src --ext .js,.jsx,.ts,.tsx -f unix 2>&1 | tee eslint.txt; exit ${PIPESTATUS[0]}
+            continue-on-error: true
+          - name: Build
+            run: bun run build
+          - name: Keep the reports
+            if: always()
+            uses: actions/upload-artifact@v4
+            with:
+              name: check-reports
+              path: |
+                tsc.txt
+                eslint.txt
