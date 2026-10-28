@@ -116,7 +116,7 @@ async function runChecks(): Promise<Check[]> {
         const notRunning = enabled.filter(id => !pluginInstances.has(id) && (!safeMode || (isCorePlugin(id) && !id.startsWith("deltacord."))));
         add({ group: "Plugins", label: "Plugins", value: `${enabled.length} on, ${pluginInstances.size} running`, status: notRunning.length ? "warn" : "ok" });
         for (const id of notRunning) {
-            add({ group: "Plugins", label: registeredPlugins.get(id)?.name ?? id, value: "on but not running", status: "warn", hint: "It may have failed to start; try turning it off and on." });
+            add({ group: "Plugins", label: require("@core/plugins").pluginName(registeredPlugins.get(id), id), value: "on but not running", status: "warn", hint: "It may have failed to start; try turning it off and on." });
         }
 
         const vd = Object.values<any>(VdPluginManager.plugins ?? {});

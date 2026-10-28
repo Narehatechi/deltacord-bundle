@@ -29,10 +29,24 @@ export const getCorePlugins = (): Record<string, CorePlugin> => ({
     "deltacord.typewriter": require("./typewriter"),
 });
 
+/** A built-in plugin's manifest (simpler than an installed plugin's). */
+export interface CorePluginManifest {
+    readonly id: string;
+    readonly name: string;
+    readonly version: string;
+    readonly description?: string;
+    readonly authors?: Array<{ name: string; id?: string; }>;
+}
+
+/** A plugin's name, whichever kind of manifest it has. */
+export const pluginName = (manifest: any, fallback = "") =>
+    manifest?.name ?? manifest?.display?.name ?? fallback;
+
 /**
  * @internal
  */
-export function defineCorePlugin(instance: PluginInstanceInternal): PluginInstanceInternal {
+export function defineCorePlugin(plugin: Omit<PluginInstanceInternal, "manifest"> & { manifest: CorePluginManifest; }): PluginInstanceInternal {
+    const instance = plugin as unknown as PluginInstanceInternal;
     // @ts-expect-error
     instance[Symbol.for("bunny.core.plugin")] = true;
     return instance;

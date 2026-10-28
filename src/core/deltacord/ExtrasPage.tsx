@@ -21,7 +21,7 @@ export default function ExtrasPage() {
     useProxy(extrasSettings);
     const settings = getExtras();
     const set = (key: keyof ExtrasSettings) => (value: boolean) => {
-        extrasSettings[key] = value;
+        (extrasSettings as Record<string, unknown>)[key] = value;
         announceSave();
     };
 

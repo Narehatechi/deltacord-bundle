@@ -24,6 +24,8 @@ export interface PluginSettingsStorage {
 }
 
 export interface BunnyPluginManifest extends BunnyManifest {
+    /** Core (built-in) plugins name themselves here; installed ones use display.name. */
+    readonly name?: string;
     readonly type: "plugin";
     readonly spec: 3;
     readonly main: string;

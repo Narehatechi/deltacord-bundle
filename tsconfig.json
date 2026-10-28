@@ -1,6 +1,7 @@
 {
     "exclude": [
-        "dist"
+        "dist",
+        "eslint.config.mjs"
     ],
     "compilerOptions": {
         "strict": true,

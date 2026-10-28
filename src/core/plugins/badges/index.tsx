@@ -28,6 +28,7 @@ export default defineCorePlugin({
             if (ret.props.id.match(/bunny-\d+-\d+/)) {
                 Object.assign(ret.props, propHolder[ret.props.id]);
             }
+            return ret;
         });
 
         after("default", useBadgesModule, ([user], r) => {

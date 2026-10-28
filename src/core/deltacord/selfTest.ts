@@ -121,7 +121,7 @@ export function runSelfTest(): SelfTestCheck[] {
     for (const [label, test] of shared) out.push(result(group, label, test));
 
     for (const [id, needs] of Object.entries(NEEDS)) {
-        const name = (registeredPlugins.get(id) as any)?.name ?? (registeredPlugins.get(id) as any)?.display?.name ?? id;
+        const name = require("@core/plugins").pluginName(registeredPlugins.get(id), id);
         const enabled = isPluginEnabled(id);
         const running = pluginInstances.has(id);
         if (!enabled) {

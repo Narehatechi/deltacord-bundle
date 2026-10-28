@@ -68,7 +68,7 @@ export function findSuspect(error: unknown): Suspect | undefined {
     const bunny = /bunny-plugin\/(.+?)-\d[\w.+-]*/.exec(text);
     if (bunny) {
         const id = bunny[1];
-        return { kind: "bunny", id, name: registeredPlugins.get(id)?.name ?? id };
+        return { kind: "bunny", id, name: require("@core/plugins").pluginName(registeredPlugins.get(id), id) };
     }
 
     try {
