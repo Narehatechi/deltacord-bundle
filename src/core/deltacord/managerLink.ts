@@ -19,12 +19,29 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 /** The last Doctor checks, so a status can be sent quickly while new ones run. */
 let lastChecks: any[] = [];
 
+/** Where the latest Doctor report is kept, for the module's report (readable even if Deltacord gets stuck later). */
+const DOCTOR_FILE = "pyoncord/deltacord-doctor-report.txt";
+
+/** Runs Doctor and keeps its report in a file. */
+async function runDoctor() {
+    const { runChecks, report } = require("./DoctorPage");
+    const raw = await runChecks();
+    lastChecks = raw.map((c: any) => ({ group: c.group, label: c.label, value: String(c.value), status: c.status, hint: c.hint ?? null }));
+    try {
+        const { NativeFileModule } = require("@lib/api/native/modules");
+        let text = report(raw);
+        try {
+            const { stuckReportText } = require("./breadcrumbs");
+            const stuck = await stuckReportText();
+            if (stuck) text += "\n\n" + stuck;
+        } catch { }
+        await NativeFileModule.writeFile("documents", DOCTOR_FILE, text, "utf8");
+    } catch { }
+    return lastChecks;
+}
+
 async function checks(budgetMs: number) {
-    const run = (async () => {
-        const { runChecks } = require("./DoctorPage");
-        lastChecks = (await runChecks()).map((c: any) => ({ group: c.group, label: c.label, value: String(c.value), status: c.status, hint: c.hint ?? null }));
-        return lastChecks;
-    })().catch(() => lastChecks);
+    const run = runDoctor().catch(() => lastChecks);
     return Promise.race([run, sleep(budgetMs).then(() => lastChecks)]);
 }
 
@@ -139,6 +156,9 @@ let running = false;
 export function startManagerLink() {
     if (running || !hasNativeBridge()) return;
     running = true;
+    // Keep a fresh Doctor report on the phone: a minute after starting, then every half hour.
+    setTimeout(() => void runDoctor().catch(() => { }), 60_000);
+    setInterval(() => void runDoctor().catch(() => { }), 30 * 60_000);
     void (async () => {
         let failures = 0;
         while (running) {

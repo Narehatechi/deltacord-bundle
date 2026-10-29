@@ -195,7 +195,7 @@ export async function runChecks(): Promise<Check[]> {
     return checks;
 }
 
-function report(checks: Check[]) {
+export function report(checks: Check[]) {
     const lines = ["Deltacord Doctor report", new Date().toISOString(), ""];
     let group = "";
     for (const c of checks) {
