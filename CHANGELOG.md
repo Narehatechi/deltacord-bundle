@@ -1,3 +1,10 @@
+## [1.29.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.2...v1.29.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* Typewriter is now Deltavoice, smoother, and doesn't jump when you send ([55d517b](https://github.com/Narehatechi/deltacord-bundle/commit/55d517b12f176be73c2416fbdc2edf0cb4bafae8))
+
 ## [1.29.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.1...v1.29.2) (2026-10-29)
 
 
