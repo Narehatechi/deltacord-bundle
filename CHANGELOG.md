@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.3...v1.30.0) (2026-10-29)
+
+
+### Features
+
+* the Manager shows where a stuck startup stopped ([c3d9912](https://github.com/Narehatechi/deltacord-bundle/commit/c3d99122f3d483ca1d387a5b5544bb86c6d036f7))
+
 ## [1.29.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.2...v1.29.3) (2026-10-29)
 
 
