@@ -1,3 +1,10 @@
+## [1.29.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.0...v1.29.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* the screen no longer freezes after cropping ([174d7fa](https://github.com/Narehatechi/deltacord-bundle/commit/174d7fa0be0645ca222e94202cf66a7da9347e70))
+
 # [1.29.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.28.13...v1.29.0) (2026-10-28)
 
 
