@@ -1,3 +1,10 @@
+## [1.29.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.1...v1.29.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* the image cropper uses the module's Android screen ([be5d40e](https://github.com/Narehatechi/deltacord-bundle/commit/be5d40ec3e6749f1911aa62b053ee6f8de71425e))
+
 ## [1.29.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.0...v1.29.1) (2026-10-29)
 
 
