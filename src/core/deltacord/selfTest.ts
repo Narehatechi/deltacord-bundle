@@ -87,7 +87,11 @@ const NEEDS: Record<string, Array<[string, () => boolean | string]>> = {
             const { soundStatus } = require("@core/deltacord/extras");
             if (soundStatus.fast === true) return "fast (Deltacord module)";
             if (soundStatus.fast === false) return `Discord's player; fast one failed: ${soundStatus.error || "unknown"}`;
-            return "not used yet (tap Test the sound in Typewriter)";
+            return "not used yet (tap Test the sound in Deltavoice)";
+        }],
+        ["This session", () => {
+            const { voiceStats: v } = require("@core/plugins/typewriter");
+            return `${v.typed} typed · skipped: ${v.skipLeave} leaving the chat, ${v.skipBackground} leaving the app · ${v.rushes} hurried after you sent · phone busy ${v.lateTicks}× · redraw every ${v.redrawGap}ms`;
         }],
         ["Message events", () => fluxStats.dispatches > 0],
     ],

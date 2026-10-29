@@ -1,5 +1,5 @@
 /**
- * Typewriter: new messages in the chat you're looking at type themselves out letter by letter,
+ * Deltavoice (was Typewriter): new messages in the chat you're looking at type themselves out letter by letter,
  * like Deltarune's dialogue, with a text sound for each letter and little pauses after
  * punctuation. Tap-free: it just plays as messages arrive.
  *
@@ -65,8 +65,10 @@ const SPEEDS = { slowest: 3, slow: 2, normal: 1.5, fast: 1 } as const;
 /** However late a tick runs (the phone was busy), typing moves on at most this much: lag pauses it, never skips ahead. */
 const MAX_STEP = 2 * (1000 / 30);
 /** The chat is redrawn at most this often; slower if redraws are slow on this phone. */
-const MIN_REDRAW_GAP = 50;
-const MAX_REDRAW_GAP = 150;
+const MIN_REDRAW_GAP = 80;
+const MAX_REDRAW_GAP = 220;
+/** Typing speed while catching up after you send a message (instead of jumping to the end). */
+const RUSH = 4;
 /** Letters a second at each speed, for the settings page. */
 const PER_SECOND = (speed: keyof typeof SPEEDS) => Math.round(30 / SPEEDS[speed]);
 /** Only very long messages are squeezed, to finish within this. */
@@ -102,6 +104,10 @@ interface Typing {
     lastRedraw: number;
     /** Letters shown on screen (may trail `revealed` until the next redraw). */
     shown: number;
+    /** Whether the row was last drawn with the opening flash. */
+    flashShown?: boolean;
+    /** Your own message. */
+    own?: boolean;
     /** When each character of the text appears (ms after start). */
     times: number[];
     revealed: number;
@@ -325,6 +331,12 @@ const describeVoice = (v: Voice) =>
     `${v.soundName ? `sound "${v.soundName}"` : v.soundUrl ? "own sound" : "default sound"}${v.pitch && v.pitch !== 1 ? `, pitch ${v.pitch}` : ""}`;
 
 let redrawGap = MIN_REDRAW_GAP;
+/** You sent a message: what's typing before it hurries (instead of jumping to the end). */
+let rush = false;
+let lastTickAt = 0;
+
+/** What Deltavoice has done this session (for Doctor): skips by cause, and how hard the phone works. */
+export const voiceStats = { typed: 0, skipLeave: 0, skipBackground: 0, rushes: 0, lateTicks: 0, redrawGap: MIN_REDRAW_GAP };
 
 /** Redraws a row, and slows the redraw rate down on phones where a redraw is slow. */
 function timedRedraw(channelId: string, id: string, guildId?: string) {
@@ -337,6 +349,15 @@ function timedRedraw(channelId: string, id: string, guildId?: string) {
 
 function tick() {
     const now = Date.now();
+    // Ticks arriving late mean the phone is busy: redraw less often until it catches up.
+    if (lastTickAt && now - lastTickAt > TICK * 2.5) {
+        voiceStats.lateTicks++;
+        redrawGap = Math.min(MAX_REDRAW_GAP, redrawGap * 1.25);
+    } else {
+        redrawGap = Math.max(MIN_REDRAW_GAP, redrawGap * 0.99);
+    }
+    voiceStats.redrawGap = Math.round(redrawGap);
+    lastTickAt = now;
     // One message types at a time, like dialogue: the next waits for the one before it.
     let active: [string, Typing] | undefined;
     for (const entry of typing) {
@@ -359,9 +380,11 @@ function tick() {
     if (active) {
         const [id, t] = active;
         const text = t.text;
+        // Your own message's turn: the hurry is over.
+        if (t.own) rush = false;
         if (t.start !== null && now >= t.start) {
             // Smooth time: a late tick (the phone was busy) moves on by at most MAX_STEP.
-            if (t.lastTick) t.elapsed += Math.min(now - t.lastTick, MAX_STEP);
+            if (t.lastTick) t.elapsed += Math.min(now - t.lastTick, MAX_STEP) * (rush ? RUSH : 1);
             t.lastTick = now;
         }
         const n = revealedAt(t.times, t.elapsed);
@@ -371,17 +394,25 @@ function tick() {
             t.revealed = n;
         }
         const done = n >= t.times.length;
+        // The flash is drawn steady (one redraw to start it, one to end it), not as a fade.
         const flashing = store.flash !== false && t.start !== null && now >= t.start && t.elapsed < FLASH_MS;
+        const flashChanged = flashing !== !!t.flashShown;
         // Redraws are what's costly: at most one per gap, and always the last one.
-        if ((t.shown !== t.revealed || flashing) && (done || now - t.lastRedraw >= redrawGap)) {
+        if ((t.shown !== t.revealed || flashChanged) && (done || flashChanged || now - t.lastRedraw >= redrawGap)) {
             t.shown = t.revealed;
+            t.flashShown = flashing;
             t.lastRedraw = now;
-            if (done) typing.delete(id);
+            if (done) {
+                typing.delete(id);
+                voiceStats.typed++;
+            }
             timedRedraw(t.channelId, id, t.guildId);
         } else if (done && t.shown === t.revealed) {
             typing.delete(id);
+            voiceStats.typed++;
         }
     }
+    if (!typing.size) rush = false;
     if (!typing.size && ticker) {
         clearInterval(ticker);
         ticker = undefined;
@@ -454,6 +485,7 @@ function startTyping(message: any, guildId?: string) {
         lastTick: 0,
         lastRedraw: 0,
         shown: 0,
+        own: message.author?.id === UserStore.getCurrentUser?.()?.id,
     });
     ticker ??= setInterval(tick, TICK);
 }
@@ -471,7 +503,7 @@ function patchRows() {
     let RowManager = findByName("RowManager");
     if (!RowManager?.prototype?.generate) RowManager = findByName("RowManager", false)?.default;
     if (!RowManager?.prototype?.generate) {
-        console.error("[Typewriter] Couldn't find Discord's chat rows");
+        console.error("[Deltavoice] Couldn't find Discord's chat rows");
         return () => { };
     }
     return after("generate", RowManager.prototype, ([input]: any[], row: any) => {
@@ -495,11 +527,9 @@ function patchRows() {
                 content = [...shown, ...invisible(rest)];
 
                 // The text box opening: a white flash on the message that fades out.
-                const since = t.start === null || Date.now() < t.start ? -1 : t.elapsed;
-                if (store.flash !== false && since >= 0 && since < FLASH_MS) {
-                    const alpha = Math.round(0x40 * (1 - since / FLASH_MS)).toString(16).padStart(2, "0");
+                if (store.flash !== false && t.flashShown) {
                     row.backgroundHighlight = {
-                        backgroundColor: processColor(`#FFFFFF${alpha}`),
+                        backgroundColor: processColor("#FFFFFF30"),
                         gutterColor: processColor("#FFFFFF"),
                     };
                 }
@@ -511,7 +541,7 @@ function patchRows() {
 
 /**
  * A person's voice, in one place: hear it, import a sound file, make it higher or lower, or
- * reset it. Opened from Typewriter's settings and from long-pressing their message.
+ * reset it. Opened from Deltavoice's settings and from long-pressing their message.
  */
 export function openVoiceEditor(userId: string, name: string) {
     const voice = store.voices?.[userId];
@@ -558,13 +588,13 @@ export function openVoiceEditor(userId: string, name: string) {
 }
 
 /**
- * Adds "Typewriter voice" to the menu you get by long-pressing a message, for its author.
+ * Adds "Deltavoice voice" to the menu you get by long-pressing a message, for its author.
  * Discord loads that menu on demand (openLazy); its rows are copied from one already there.
  */
 function patchMessageMenu(): () => void {
     const sheets = findByProps("openLazy", "hideActionSheet");
     if (typeof sheets?.openLazy !== "function") {
-        console.error("[Typewriter] Couldn't find Discord's menus");
+        console.error("[Deltavoice] Couldn't find Discord's menus");
         return () => { };
     }
     const React = require("react");
@@ -587,7 +617,7 @@ function patchMessageMenu(): () => void {
                     const name = author.globalName ?? author.global_name ?? author.username ?? "them";
                     const row = React.cloneElement(rows[0], {
                         key: KEY,
-                        label: mine ? "Your Typewriter voice" : `Typewriter voice for ${name}`,
+                        label: mine ? "Your Deltavoice voice" : `Deltavoice voice for ${name}`,
                         onPress: () => {
                             try {
                                 sheets.hideActionSheet?.();
@@ -795,7 +825,7 @@ let undo: (() => void) | undefined;
 export default defineCorePlugin({
     manifest: {
         id: "deltacord.typewriter",
-        name: "Typewriter",
+        name: "Deltavoice",
         version: "1.0.0",
         description: "New messages type themselves out letter by letter like Deltarune's dialogue, with a text sound.",
         authors: [{ name: "Deltacord" }],
@@ -812,14 +842,17 @@ export default defineCorePlugin({
             (() => {
                 const sub = (require("react-native").AppState ?? ReactNative?.AppState)?.addEventListener?.("change", (state: string) => {
                     // Only really leaving ("background"); "inactive" also fires for the notification shade.
-                    if (state === "background" && typing.size) finishAll();
+                    if (state === "background" && typing.size) {
+                        voiceStats.skipBackground++;
+                        finishAll();
+                    }
                 });
                 return () => sub?.remove?.();
             })(),
             registerCommands([
                 {
                     name: "voice",
-                    description: "Give someone their own Typewriter voice (only you hear it)",
+                    description: "Give someone their own Deltavoice voice (only you hear it)",
                     options: [
                         { name: "user", displayName: "user", description: "Who", type: 6, required: true },
                         { name: "file", displayName: "file", description: "Pick a sound file from your phone", type: 5 },
@@ -850,7 +883,7 @@ export default defineCorePlugin({
                 },
                 {
                     name: "voice-remove",
-                    description: "Put someone back on the default Typewriter voice",
+                    description: "Put someone back on the default Deltavoice voice",
                     options: [{ name: "user", displayName: "user", description: "Who", type: 6, required: true }],
                     execute(args: any[], ctx: any) {
                         const userId = String(option(args, "user") ?? "");
@@ -859,12 +892,12 @@ export default defineCorePlugin({
                 },
                 {
                     name: "voices",
-                    description: "List everyone's Typewriter voices",
+                    description: "List everyone's Deltavoice voices",
                     options: [],
                     execute(_args: any[], ctx: any) {
                         const entries = Object.entries(store.voices ?? {});
                         reply(ctx.channel.id, entries.length
-                            ? `**Typewriter voices (${entries.length})**\n${entries.map(([id, v]) => `• ${UserStore.getUser?.(id)?.globalName ?? v.name}: ${describeVoice(v)}`).join("\n")}`
+                            ? `**Deltavoice voices (${entries.length})**\n${entries.map(([id, v]) => `• ${UserStore.getUser?.(id)?.globalName ?? v.name}: ${describeVoice(v)}`).join("\n")}`
                             : "Nobody has their own voice yet. Add one with /voice.");
                     },
                 },
@@ -876,7 +909,10 @@ export default defineCorePlugin({
                     // some of these don't say which chat: those aren't a switch).
                     if (payload.type === "CHANNEL_SELECT") {
                         const leaving = !!payload.channelId && [...typing.values()].some(t => t.channelId !== payload.channelId);
-                        if (leaving) finishAll();
+                        if (leaving) {
+                            voiceStats.skipLeave++;
+                            finishAll();
+                        }
                         return undefined;
                     }
                     if (payload.type !== "MESSAGE_CREATE") return undefined;
@@ -888,7 +924,11 @@ export default defineCorePlugin({
                     // swaps in the server's copy with a new id. Anything still typing finishes, and
                     // your message types out in your voice from the moment it appears.
                     if (payload.optimistic || (mine && message.state === "SENDING")) {
-                        if (typing.size) finishAll();
+                        // What's still typing hurries through instead of jumping to the end.
+                        if (typing.size) {
+                            rush = true;
+                            voiceStats.rushes++;
+                        }
                         if (store.own !== false) startTyping(message, payload.guildId ?? message.guild_id);
                         return undefined;
                     }
