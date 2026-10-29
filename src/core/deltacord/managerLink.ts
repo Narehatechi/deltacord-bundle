@@ -28,6 +28,41 @@ async function checks(budgetMs: number) {
     return Promise.race([run, sleep(budgetMs).then(() => lastChecks)]);
 }
 
+/**
+ * While Discord's screen hasn't come up (stuck on its logo), how far startup got: the Manager
+ * shows these, so a stuck phone can still say where it stopped.
+ */
+function startupChecks(): any[] {
+    try {
+        const { currentStartup, unfinishedSteps } = require("./breadcrumbs");
+        const rec = currentStartup();
+        if (!rec || rec.uiReady) return [];
+        const group = "Startup";
+        const out: any[] = [{
+            group, label: "Discord's screen",
+            value: `not up after ${Math.round((Date.now() - rec.startedAt) / 1000)}s (Deltacord ${rec.opened ? "let Discord open" : "still starting"}, plugins ${rec.ready ? "started" : "not started"})`,
+            status: "bad",
+        }];
+        out.push({ group, label: "Last steps", value: rec.stages.slice(-6).map((st: any) => `${st.name} @${st.ms}ms`).join(" › ") || "none", status: "warn" });
+        const unfinished = unfinishedSteps(rec);
+        if (unfinished.length) out.push({ group, label: "Never finished", value: unfinished.join(", "), status: "warn" });
+        for (const e of (rec.errors ?? []).slice(-3)) out.push({ group, label: "Error", value: String(e).slice(0, 300), status: "bad" });
+        try {
+            const { findByStoreName } = require("@metro/wrappers");
+            const gateway = findByStoreName("GatewayConnectionStore");
+            const auth = findByStoreName("AuthenticationStore");
+            out.push({
+                group, label: "Connection",
+                value: `logged in: ${!!auth?.getId?.()} · connected: ${gateway?.isConnected?.() ?? "?"}`,
+                status: gateway?.isConnected?.() ? "info" : "warn",
+            });
+        } catch { }
+        return out;
+    } catch {
+        return [];
+    }
+}
+
 async function status(requestId: string | null, error?: string) {
     const info = getDebugInfo();
     const { listLocalBackups } = require("./backup");
@@ -42,7 +77,7 @@ async function status(requestId: string | null, error?: string) {
         module: `${info.bunny.loader.name ?? "?"} ${info.bunny.loader.version ?? ""}`.trim(),
         discord: `${info.discord.version} (${info.discord.build})`,
         safeMode: settings.safeMode?.enabled === true,
-        checks: await checks(3000),
+        checks: [...startupChecks(), ...await checks(3000)],
         plugins: [...registeredPlugins.keys()]
             // Revenge's own internal plugins aren't shown.
             .filter(id => !id.startsWith("bunny."))
