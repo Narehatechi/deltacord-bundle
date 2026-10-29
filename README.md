@@ -63,10 +63,12 @@ You need Android 9 or newer. Deltacord installs as its own app next to Discord, 
 
 1. **Download Deltacord Manager.** On your phone, open the [latest Manager release](https://github.com/Narehatechi/deltacord-manager/releases/latest) and download the file ending in `.apk`.
 2. **Install it.** Open the downloaded file. If Android asks, allow your browser (or file manager) to **install unknown apps**, then tap **Install**.
-3. **Install Deltacord.** Open **Deltacord Manager** and tap **Install**. It downloads Discord, adds Deltacord to it and installs the result. This takes a minute or two; keep the Manager open until it says **Installed successfully**.
-4. **Open Deltacord** (from the Manager's **Launch** button or your app drawer) and log in. Deltacord's intro plays the first time it starts.
+3. **Install Deltacord.** Open **Deltacord Manager**. The first time, it walks you through a short setup; at the end, choose **INSTALL NOW** (later, it's **INSTALL** on the main menu). It downloads Discord, adds Deltacord to it and installs the result. This takes a minute or two; keep the Manager open until it says Deltacord is installed.
+4. **Open Deltacord** (the Manager's **LAUNCH**, or your app drawer) and log in. Deltacord's intro plays the first time it starts.
 
-**Updating:** Deltacord updates itself when you open it. When the Manager says a new version is available, open it and tap **Update** to get the newest Discord and module.
+The Manager's **DELTACORD** page then shows Deltacord's health, lets you turn plugins on and off, pick a theme, and make a backup.
+
+**Updating:** Deltacord updates itself when you open it. When Discord has a new version, the Manager's main menu shows **UPDATE**.
 
 **If something goes wrong:**
 - *"Installation was blocked"* or nothing happens: allow the Manager to install unknown apps (Settings › Apps › Deltacord Manager › Install unknown apps), then try again.
