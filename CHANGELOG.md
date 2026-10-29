@@ -1,3 +1,10 @@
+# [1.31.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.30.0...v1.31.0) (2026-10-29)
+
+
+### Features
+
+* Deltacord keeps its latest Doctor report for the Manager's REPORT ([ec0d7dd](https://github.com/Narehatechi/deltacord-bundle/commit/ec0d7dddd9478bc8757865b4e919ed11cbfd84bd))
+
 # [1.30.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.29.3...v1.30.0) (2026-10-29)
 
 
