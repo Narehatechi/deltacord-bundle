@@ -212,6 +212,30 @@ function Cropper({ options, info, onCrop, onFinish }: {
 
 /** Opens Deltacord's cropper; resolves like Discord's cropper does. */
 async function crop(options: CropOptions): Promise<any> {
+    // The module's cropper: a plain Android screen, which always closes cleanly (module 1930+).
+    let native: any;
+    try {
+        native = await callNative(
+            "deltacord.image.cropScreen", options.uri,
+            options.width ?? 0, options.height ?? 0,
+            options.width && options.height ? options.width : 0,
+            options.width && options.height ? options.height : 0,
+            options.mimeType ?? "image/png",
+        );
+    } catch (e: any) {
+        // An older module: the cropper drawn in Discord below.
+        if (!/not registered/i.test(String(e?.message ?? e))) throw e;
+        return cropInApp(options);
+    }
+    cropperStatus.opened++;
+    if (native == null) throw cancelled();
+    if (!native.data) throw new Error("the module didn't return the cropped picture");
+    cropperStatus.saved++;
+    return native;
+}
+
+/** The cropper drawn in Discord (React Native), for modules older than 1930. */
+async function cropInApp(options: CropOptions): Promise<any> {
     const info: Info = await Promise.race([
         callNative("deltacord.image.info", options.uri),
         new Promise<never>((_, fail) => setTimeout(() => fail(new Error("the module took too long to read the picture")), 10000)),
