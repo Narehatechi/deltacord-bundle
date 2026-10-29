@@ -57,11 +57,22 @@ const distance = (touches: any[]) => {
     return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
 };
 
-function Cropper({ options, info, onDone, onCancel }: {
+/** How the cropper ended. */
+type Outcome = { result: any; } | { error: unknown; } | { cancelled: true; };
+
+/**
+ * How long the hidden window gets to close before it's removed. Removing an Android Modal in the
+ * same moment it's hidden can leave an invisible window over the app that eats every tap.
+ */
+const CLOSE_MS = 350;
+
+function Cropper({ options, info, onCrop, onFinish }: {
     options: CropOptions;
     info: Info;
-    onDone: (rect: { x: number; y: number; w: number; h: number; }) => Promise<void>;
-    onCancel: () => void;
+    /** Crops this area; resolves with the result, throws if it can't. */
+    onCrop: (rect: { x: number; y: number; w: number; h: number; }) => Promise<any>;
+    /** Called once the window has fully closed. */
+    onFinish: (outcome: Outcome) => void;
 }) {
     const screen = Dimensions.get("window");
     // The shape to crop: what Discord asked for (square for avatars, wide for banners).
@@ -74,13 +85,17 @@ function Cropper({ options, info, onDone, onCancel }: {
     const [zoom, setZoom] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [busy, setBusy] = useState(false);
-    // The cropper hides itself when it's finished: closing it through Discord's alerts didn't
-    // always work, which left it on screen after DONE (the picture was saved behind it).
+    // Finishing: hide the window first, and only report back (which removes it) once Android has
+    // closed it.
     const [open, setOpen] = useState(true);
-    const cancel = () => {
+    const finished = useRef(false);
+    const finish = (outcome: Outcome) => {
+        if (finished.current) return;
+        finished.current = true;
         setOpen(false);
-        onCancel();
+        setTimeout(() => onFinish(outcome), CLOSE_MS);
     };
+    const cancel = () => finish({ cancelled: true });
     const live = useRef({ zoom: 1, x: 0, y: 0 });
     const gesture = useRef({ count: 0, zoom: 1, x: 0, y: 0, dist: 1, px: 0, py: 0 });
 
@@ -147,7 +162,7 @@ function Cropper({ options, info, onDone, onCancel }: {
     );
 
     return (
-        <Modal visible={open} transparent={false} animationType="fade" onRequestClose={cancel} statusBarTranslucent>
+        <Modal visible={open} transparent={false} animationType="none" onRequestClose={cancel} statusBarTranslucent>
             <View style={{ flex: 1, backgroundColor: "#000", alignItems: "center", justifyContent: "center", gap: 22 }}>
                 <Text style={{ color: "#FFFFFF", fontSize: 20, letterSpacing: 2, fontFamily: FONT_BOLD }}>EDIT IMAGE</Text>
                 <View
@@ -176,18 +191,18 @@ function Cropper({ options, info, onDone, onCancel }: {
                 <View style={{ flexDirection: "row", gap: 12 }}>
                     {button("CANCEL", cancel)}
                     {button(busy ? "SAVING…" : "DONE", async () => {
-                        if (busy) return;
+                        if (busy || finished.current) return;
                         setBusy(true);
                         const scale = fit * live.current.zoom;
                         const l = (frameW - info.width * scale) / 2 + live.current.x;
                         const t = (frameH - info.height * scale) / 2 + live.current.y;
+                        let outcome: Outcome;
                         try {
-                            await onDone({ x: -l / scale, y: -t / scale, w: frameW / scale, h: frameH / scale });
-                        } catch { } finally {
-                            // Done (or failed: the reason shows as a message): either way, close.
-                            setOpen(false);
-                            setBusy(false);
+                            outcome = { result: await onCrop({ x: -l / scale, y: -t / scale, w: frameW / scale, h: frameH / scale }) };
+                        } catch (error) {
+                            outcome = { error };
                         }
+                        finish(outcome);
                     }, "#FFFF00")}
                 </View>
             </View>
@@ -205,42 +220,38 @@ async function crop(options: CropOptions): Promise<any> {
     cropperStatus.opened++;
 
     return new Promise((resolve, reject) => {
-        const close = () => {
-            try {
-                dismissAlert(KEY);
-            } catch { }
-        };
         openAlert(KEY, <Cropper
             options={options}
             info={info}
-            onCancel={() => {
-                close();
-                reject(cancelled());
+            onCrop={async rect => {
+                // Discord's size for the result (or the cropped area, capped).
+                const outW = options.width && options.height ? options.width : Math.min(2048, Math.round(rect.w));
+                const outH = options.width && options.height ? options.height : Math.round(outW * rect.h / rect.w);
+                const result = await Promise.race([
+                    callNative(
+                        "deltacord.image.crop", options.uri,
+                        rect.x, rect.y, rect.w, rect.h, Math.round(outW), Math.round(outH),
+                        options.mimeType ?? info.mime ?? "image/png",
+                    ),
+                    new Promise<never>((_, fail) => setTimeout(() => fail(new Error("cropping took too long")), 30000)),
+                ]);
+                if (!result?.data) throw new Error("the module didn't return the cropped picture");
+                return {
+                    ...result,
+                    cropRect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.w), height: Math.round(rect.h) },
+                };
             }}
-            onDone={async rect => {
+            onFinish={outcome => {
                 try {
-                    // Discord's size for the result (or the cropped area, capped).
-                    const outW = options.width && options.height ? options.width : Math.min(2048, Math.round(rect.w));
-                    const outH = options.width && options.height ? options.height : Math.round(outW * rect.h / rect.w);
-                    const result = await Promise.race([
-                        callNative(
-                            "deltacord.image.crop", options.uri,
-                            rect.x, rect.y, rect.w, rect.h, Math.round(outW), Math.round(outH),
-                            options.mimeType ?? info.mime ?? "image/png",
-                        ),
-                        new Promise<never>((_, fail) => setTimeout(() => fail(new Error("cropping took too long")), 30000)),
-                    ]);
-                    if (!result?.data) throw new Error("the module didn't return the cropped picture");
-                    close();
+                    dismissAlert(KEY);
+                } catch { }
+                if ("result" in outcome) {
                     cropperStatus.saved++;
-                    resolve({
-                        ...result,
-                        cropRect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.w), height: Math.round(rect.h) },
-                    });
-                } catch (e) {
-                    close();
-                    reject(e);
-                    throw e;
+                    resolve(outcome.result);
+                } else if ("error" in outcome) {
+                    reject(outcome.error);
+                } else {
+                    reject(cancelled());
                 }
             }}
         />);
