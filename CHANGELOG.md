@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.31.0...v1.32.0) (2026-10-30)
+
+
+### Features
+
+* Deltacord's themes come alive: the animated dark world ([3725f52](https://github.com/Narehatechi/deltacord-bundle/commit/3725f52cce2738076543d4f46e9a36f08458023b))
+
 # [1.31.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.30.0...v1.31.0) (2026-10-29)
 
 
