@@ -1,3 +1,10 @@
+## [1.33.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.33.0...v1.33.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* remove the animated dark world, tap bursts and send hearts ([315cbf1](https://github.com/Narehatechi/deltacord-bundle/commit/315cbf17ecbabdada6f91705621bcb4f59b495a3))
+
 # [1.33.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.32.0...v1.33.0) (2026-10-30)
 
 
