@@ -88,6 +88,7 @@ export function initDeltacordLate() {
     }
     // The animated dark world (drawn by the module) follows the current theme.
     void require("./darkWorld").syncDarkWorld();
+    require("./darkWorld").startWorldEffects();
     // Deltacord Manager can check on Deltacord and change things (see managerLink.ts).
     try {
         require("./managerLink").startManagerLink();

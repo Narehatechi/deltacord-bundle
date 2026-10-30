@@ -34,3 +34,38 @@ export async function syncDarkWorld(themeId?: string | null) {
         console.warn("[Deltacord] Couldn't update the animated world", e);
     }
 }
+
+let effectsStarted = false;
+
+/** Asks the module for an effect ("send": hearts rising from the send button). Quietly does nothing without it. */
+export function playWorldEffect(kind: "send") {
+    try {
+        const bridge = require("@lib/api/native/bridge");
+        if (!bridge.hasNativeBridge()) return;
+        try {
+            bridge.callNativeSync("deltacord.world.effect", kind);
+        } catch {
+            void bridge.callNative("deltacord.world.effect", kind).catch(() => { });
+        }
+    } catch { }
+}
+
+/** Effects for things happening in Discord: sending a message. */
+export function startWorldEffects() {
+    if (effectsStarted) return;
+    effectsStarted = true;
+    try {
+        const { intercept } = require("@lib/api/flux");
+        const { findByStoreNameLazy } = require("@metro/wrappers");
+        const UserStore = findByStoreNameLazy("UserStore");
+        intercept((payload: any) => {
+            // Your own message, the moment it's sent (Discord shows it straight away).
+            if (payload?.type === "MESSAGE_CREATE" && payload.optimistic && payload.message?.author?.id === UserStore.getCurrentUser?.()?.id) {
+                setTimeout(() => playWorldEffect("send"), 0);
+            }
+            return undefined;
+        });
+    } catch (e) {
+        console.warn("[Deltacord] World effects unavailable", e);
+    }
+}

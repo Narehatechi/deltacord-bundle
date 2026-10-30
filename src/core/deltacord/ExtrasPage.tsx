@@ -33,7 +33,7 @@ export default function ExtrasPage() {
                 <TableRowGroup title="Animated dark world">
                     <TableSwitchRow
                         label="Animate Deltacord's themes"
-                        subLabel="With Deltarune, Light World or Crimson, a moving dark world plays over the whole app: a scrolling grid, drifting coloured light and sparkles. It pauses when Discord isn't on screen and in battery saver."
+                        subLabel="With Deltarune, Light World or Crimson, a moving dark world plays over the whole app: a scrolling grid, drifting coloured light and sparkles, a burst on every tap, and hearts when you send a message. It pauses when Discord isn't on screen and in battery saver."
                         icon={icon("StarIcon") ?? icon("PaintPaletteIcon")}
                         value={settings.animatedWorld !== false}
                         onValueChange={(v: boolean) => {
