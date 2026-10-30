@@ -86,6 +86,8 @@ export function initDeltacordLate() {
     } catch (e) {
         console.error("[Deltacord] Couldn't set up the image cropper", e);
     }
+    // The animated dark world (drawn by the module) follows the current theme.
+    void require("./darkWorld").syncDarkWorld();
     // Deltacord Manager can check on Deltacord and change things (see managerLink.ts).
     try {
         require("./managerLink").startManagerLink();

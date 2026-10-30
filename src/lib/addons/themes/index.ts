@@ -159,6 +159,8 @@ export function selectTheme(theme: VdThemeInfo | null, write = true) {
     announceSave(theme ? `Theme set: ${theme.data?.name ?? "theme"}` : "Theme turned off");
     // Deltacord's themes bring the Determination font; only for the user's own choices, not startup or Safe Mode.
     if (isUserTime() && !settings.safeMode?.enabled) onThemeChosen(theme?.id ?? null);
+    // The animated dark world follows the theme.
+    void require("@core/deltacord/darkWorld").syncDarkWorld(theme?.id ?? null);
     if (theme) theme.selected = true;
     Object.keys(themes).forEach(
         k => themes[k].selected = themes[k].id === theme?.id
