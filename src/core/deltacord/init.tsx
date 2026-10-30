@@ -86,9 +86,13 @@ export function initDeltacordLate() {
     } catch (e) {
         console.error("[Deltacord] Couldn't set up the image cropper", e);
     }
-    // The animated dark world (drawn by the module) follows the current theme.
-    void require("./darkWorld").syncDarkWorld();
-    require("./darkWorld").startWorldEffects();
+    // The animated dark world was removed: switch it off for modules that still draw it (they
+    // read this file; an old "on" would keep it running).
+    try {
+        require("@lib/api/native/modules").NativeFileModule.writeFile(
+            "documents", "pyoncord/deltacord-world.json", JSON.stringify({ on: false }), "utf8",
+        )?.catch?.(() => { });
+    } catch { }
     // Deltacord Manager can check on Deltacord and change things (see managerLink.ts).
     try {
         require("./managerLink").startManagerLink();

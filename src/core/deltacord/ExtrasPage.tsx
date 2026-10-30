@@ -30,30 +30,6 @@ export default function ExtrasPage() {
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
                 <StartupAnimationSwitch />
 
-                <TableRowGroup title="Animated dark world">
-                    <TableSwitchRow
-                        label="Animate Deltacord's themes"
-                        subLabel="With Deltarune, Light World or Crimson, a moving dark world plays over the whole app: a scrolling grid, drifting coloured light and sparkles, a burst on every tap, and hearts when you send a message. It pauses when Discord isn't on screen and in battery saver."
-                        icon={icon("StarIcon") ?? icon("PaintPaletteIcon")}
-                        value={settings.animatedWorld !== false}
-                        onValueChange={(v: boolean) => {
-                            extrasSettings.animatedWorld = v;
-                            announceSave();
-                            void require("./darkWorld").syncDarkWorld();
-                        }}
-                    />
-                    <TableRow
-                        label="Strength"
-                        subLabel="Tap to change."
-                        trailing={<TableRow.TrailingText text={({ subtle: "Subtle", normal: "Normal", strong: "Strong" } as const)[settings.worldStrength ?? "normal"]} />}
-                        onPress={() => {
-                            const order = ["subtle", "normal", "strong"] as const;
-                            extrasSettings.worldStrength = order[(order.indexOf(settings.worldStrength ?? "normal") + 1) % order.length];
-                            void require("./darkWorld").syncDarkWorld();
-                        }}
-                    />
-                </TableRowGroup>
-
                 <TableRowGroup title="Font">
                     <TableSwitchRow
                         label="Determination font with Deltacord's themes"

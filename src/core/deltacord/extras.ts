@@ -31,10 +31,6 @@ export interface ExtrasSettings {
     saveSoundFile?: string | null;
     /** Play the save sound when saving a profile. */
     profileSaveSound: boolean;
-    /** The animated dark world over the app, with Deltacord's themes. */
-    animatedWorld?: boolean;
-    /** How strong it is. */
-    worldStrength?: "subtle" | "normal" | "strong";
 }
 
 export const DEFAULT_EXTRAS: ExtrasSettings = { textBlips: false, lowBlips: false, saveToasts: true, saveChime: false, themeFont: true, profileSaveSound: true };
