@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.32.0...v1.33.0) (2026-10-30)
+
+
+### Features
+
+* hearts rise when you send a message ([5235091](https://github.com/Narehatechi/deltacord-bundle/commit/5235091a09bbf0ac87a3c16587713ced9cd03dc7))
+
 # [1.32.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.31.0...v1.32.0) (2026-10-30)
 
 
