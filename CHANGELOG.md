@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.33.1...v1.34.0) (2026-10-31)
+
+
+### Features
+
+* choose the startup animation style in Extras ([cbafef6](https://github.com/Narehatechi/deltacord-bundle/commit/cbafef65ed7f70d2b9536d75727e524af4de9477))
+
 ## [1.33.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.33.0...v1.33.1) (2026-10-30)
 
 
