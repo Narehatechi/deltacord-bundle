@@ -1,7 +1,7 @@
 import { useProxy } from "@core/vendetta/storage";
 import { findAssetId } from "@lib/api/assets";
 import { showToast } from "@lib/ui/toasts";
-import { Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
+import { Button, Stack, TableRadioGroup, TableRadioRow, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 
@@ -29,6 +29,7 @@ export default function ExtrasPage() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
                 <StartupAnimationSwitch />
+                <StartupStylePicker />
 
                 <TableRowGroup title="Font">
                     <TableSwitchRow
@@ -165,7 +166,7 @@ function StartupAnimationSwitch() {
         <TableRowGroup title="Startup">
             <TableSwitchRow
                 label="Startup animation"
-                subLabel="DEL, TA, CORD instead of Discord's logo while it starts. Changes on the next launch."
+                subLabel="DELTACORD instead of Discord's logo while it starts. Changes on the next launch."
                 icon={icon("StarIcon")}
                 value={on}
                 onValueChange={async (value: boolean) => {
@@ -181,6 +182,57 @@ function StartupAnimationSwitch() {
             />
             <CrashPreviewRow />
         </TableRowGroup>
+    );
+}
+
+/** Which startup animation plays; the patched app reads this file at launch. */
+const ANIMATION_STYLE_FILE = "pyoncord/startup-animation-style";
+
+const ANIMATION_STYLES: [string, string][] = [
+    ["random", "Random (a different one each launch)"],
+    ["upgraded", "Upgraded"],
+    ["fountain", "Dark Fountain"],
+    ["soul", "SOUL"],
+    ["battle", "Battle encounter"],
+    ["crt", "Old TV"],
+    ["savepoint", "Save Point"],
+    ["drop", "Letter Drop"],
+    ["warp", "Warp"],
+    ["door", "The Door"],
+    ["neon", "Neon Sign"],
+    ["dither", "Pixel Build"],
+    ["orbit", "Seven SOULs"],
+    ["rain", "Glyph Rain"],
+    ["fireworks", "Fireworks"],
+];
+
+function StartupStylePicker() {
+    const [style, setStyle] = useState<string | null>(null);
+    useEffect(() => {
+        const path = `${NativeFileModule.getConstants().DocumentsDirPath}/${ANIMATION_STYLE_FILE}`;
+        NativeFileModule.fileExists(path)
+            .then(async (exists: boolean) => exists ? (await NativeFileModule.readFile(path, "utf8")).trim() : "upgraded")
+            .then((value: string) => setStyle(ANIMATION_STYLES.some(([id]) => id === value) ? value : "upgraded"))
+            .catch(() => setStyle("upgraded"));
+    }, []);
+
+    if (!style) return null;
+    return (
+        <TableRadioGroup
+            title="Startup animation style"
+            defaultValue={style}
+            onChange={async (value: string) => {
+                setStyle(value);
+                try {
+                    await NativeFileModule.writeFile("documents", ANIMATION_STYLE_FILE, value, "utf8");
+                    showToast("Plays on the next launch");
+                } catch {
+                    showToast("Couldn't save the animation style");
+                }
+            }}
+        >
+            {ANIMATION_STYLES.map(([id, label]) => <TableRadioRow key={id} label={label} value={id} />)}
+        </TableRadioGroup>
     );
 }
 
