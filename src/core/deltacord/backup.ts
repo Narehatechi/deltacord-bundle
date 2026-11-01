@@ -11,6 +11,7 @@ import { BundleUpdaterManager, NativeFileModule } from "@lib/api/native/modules"
 
 export const BACKUP_FORMAT = "deltacord-backup";
 const BACKUP_VERSION = 1;
+import { checksumFiles } from "./checksum";
 import { backupPaths as profileBackupPaths } from "./profiles/storage";
 
 const BACKUP_DIR = "pyoncord/backups";
@@ -44,6 +45,8 @@ export interface Backup {
     createdAt: number;
     includesLogs: boolean;
     files: Record<string, string>;
+    /** Hash of `files`; missing in backups made before it was added. */
+    checksum?: string;
 }
 
 export interface LocalBackupInfo {
@@ -109,7 +112,7 @@ export async function createBackup({ includeLogs }: { includeLogs: boolean; }): 
         if (content != null) files[path] = content;
     }
 
-    return { format: BACKUP_FORMAT, version: BACKUP_VERSION, createdAt: Date.now(), includesLogs: includeLogs, files };
+    return { format: BACKUP_FORMAT, version: BACKUP_VERSION, createdAt: Date.now(), includesLogs: includeLogs, files, checksum: checksumFiles(files) };
 }
 
 export function parseBackup(text: string): Backup {
@@ -130,6 +133,9 @@ export function parseBackup(text: string): Backup {
         if (typeof content !== "string" || path.includes("..") || !/^(vd_mmkv\/|pyoncord\/|vendetta_theme\.json$)/.test(path)) {
             throw new Error(`The backup contains an unexpected file (${path}).`);
         }
+    }
+    if (data.checksum != null && data.checksum !== checksumFiles(data.files)) {
+        throw new Error("This backup is damaged or incomplete (checksum mismatch).");
     }
     return data as Backup;
 }
