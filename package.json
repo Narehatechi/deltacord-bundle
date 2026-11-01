@@ -11,7 +11,9 @@
         "build": "node scripts/build.mjs",
         "serve": "node scripts/serve.mjs",
         "serve:adb": "bun run serve --adb",
-        "lint": "eslint ./src --ext .js,.jsx,.ts,.tsx"
+        "lint": "eslint ./src",
+        "typecheck": "tsc --noEmit -p .",
+        "test": "node --test tests/"
     },
     "license": "BSD-3-Clause",
     "devDependencies": {

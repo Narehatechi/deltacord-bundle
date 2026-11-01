@@ -5,3 +5,7 @@ yarn.lock
 .DS_Store
 lib-dist/
 /packages/types
+__pycache__/
+*.pyc
+.env*
+*.log
