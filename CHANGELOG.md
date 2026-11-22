@@ -1,3 +1,10 @@
+# [1.39.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.38.0...v1.39.0) (2026-11-22)
+
+
+### Features
+
+* import any font, and hide anything ([a517784](https://github.com/Narehatechi/deltacord-bundle/commit/a517784a70a409b4e38da2a9db80c74ee4e8bf5b))
+
 # [1.38.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.37.0...v1.38.0) (2026-11-22)
 
 
