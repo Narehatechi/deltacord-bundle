@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.41.1...v1.42.0) (2026-11-22)
+
+
+### Features
+
+* letter spacing for any Deltacord font ([a8ad2df](https://github.com/Narehatechi/deltacord-bundle/commit/a8ad2dff08378d7fbc550193db4f5880b392a32b))
+
 ## [1.41.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.41.0...v1.41.1) (2026-11-22)
 
 
