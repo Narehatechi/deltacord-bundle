@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.40.0...v1.41.0) (2026-11-22)
+
+
+### Features
+
+* Deltacord offers module updates ([23e56dc](https://github.com/Narehatechi/deltacord-bundle/commit/23e56dcaf8166a81a7ed109ab98ba09309ee139e))
+
 # [1.40.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.39.0...v1.40.0) (2026-11-22)
 
 
