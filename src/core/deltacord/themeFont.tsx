@@ -35,7 +35,8 @@ export const DETERMINATION_FONT: FontDefinition = {
     main: Object.fromEntries(REPLACED.map(name => [name, FONT_URL])),
 };
 
-const isBuiltinTheme = (id?: string | null) => !!id && BUILTIN_THEME_IDS.includes(id);
+// Deltacord's own themes and the ones made in its theme editor come with Determination.
+const isBuiltinTheme = (id?: string | null) => !!id && (BUILTIN_THEME_IDS.includes(id) || id.startsWith("deltacord://custom/"));
 const selectedFont = () => (fonts as any).__selected as string | undefined;
 
 /**

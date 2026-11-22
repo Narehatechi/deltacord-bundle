@@ -16,6 +16,7 @@ import { applyAndroidAlphaKeys, normalizeToHex } from "./colors/parser";
 import { colorsPref } from "./colors/preferences";
 import { VendettaThemeManifest } from "./colors/types";
 import { BUILTIN_THEME_IDS, buildBuiltinTheme, DELTARUNE_THEME_ID } from "./builtin/deltarune";
+import { buildCustomTheme, CustomTheme, customThemes, isCustomThemeId } from "./custom";
 
 const BUILTIN_PREFIX = "deltacord://builtin/";
 
@@ -124,6 +125,12 @@ export async function fetchTheme(url: string, selected = false) {
     if (url.startsWith(BUILTIN_PREFIX)) {
         // Built-in themes are generated on the device, against this Discord version's colour keys.
         themeJSON = getBuiltinTheme(url);
+    } else if (isCustomThemeId(url)) {
+        // Themes made in the theme editor: built the same way, from their palette.
+        await awaitStorage(customThemes);
+        const custom = customThemes[url];
+        if (!custom) throw new Error("That theme was deleted from the theme editor");
+        themeJSON = buildCustomTheme(custom);
     } else try {
         themeJSON = await (await safeFetch(url, { cache: "no-store" })).json();
     } catch {
@@ -173,10 +180,20 @@ export function selectTheme(theme: VdThemeInfo | null, write = true) {
     }
 }
 
+/** Saves a theme from the theme editor (new or changed) and switches to it. */
+export async function saveCustomTheme(theme: CustomTheme) {
+    await awaitStorage(customThemes, themes);
+    customThemes[theme.id] = { ...theme, updatedAt: Date.now() };
+    const data = processData(buildCustomTheme(customThemes[theme.id]));
+    themes[theme.id] = { id: theme.id, selected: false, data };
+    await selectTheme(themes[theme.id]);
+}
+
 export async function removeTheme(id: string) {
     const theme = themes[id];
     if (theme.selected) await selectTheme(null);
     delete themes[id];
+    if (isCustomThemeId(id)) delete customThemes[id];
 
     return theme.selected;
 }

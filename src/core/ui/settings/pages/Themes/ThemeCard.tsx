@@ -5,8 +5,11 @@ import { useProxy } from "@core/vendetta/storage";
 import { fetchTheme, removeTheme, selectTheme, themes, VdThemeInfo } from "@lib/addons/themes";
 import { findAssetId } from "@lib/api/assets";
 import { settings } from "@lib/api/settings";
-import { clipboard } from "@metro/common";
+import { clipboard, NavigationNative } from "@metro/common";
 import { showToast } from "@ui/toasts";
+import { isCustomThemeId } from "@lib/addons/themes/custom";
+import { BUILTIN_THEME_IDS } from "@lib/addons/themes/builtin/deltarune";
+import { openThemeEditor } from "./ThemeEditor";
 
 function selectAndApply(value: boolean, theme: VdThemeInfo) {
     try {
@@ -20,6 +23,7 @@ export default function ThemeCard({ item: theme }: CardWrapper<VdThemeInfo>) {
     useProxy(theme);
 
     const [removed, setRemoved] = React.useState(false);
+    const navigation = NavigationNative.useNavigation();
 
     // This is needed because of React™
     if (removed) return null;
@@ -38,6 +42,15 @@ export default function ThemeCard({ item: theme }: CardWrapper<VdThemeInfo>) {
             }}
             overflowTitle={theme.data.name}
             overflowActions={[
+                ...(isCustomThemeId(theme.id) ? [{
+                    icon: "PencilIcon",
+                    label: "Edit in theme editor",
+                    onPress: () => openThemeEditor(navigation, { editId: theme.id }),
+                }] : BUILTIN_THEME_IDS.includes(theme.id) ? [{
+                    icon: "PencilIcon",
+                    label: "Make your own from this",
+                    onPress: () => openThemeEditor(navigation, { startId: theme.id }),
+                }] : []),
                 {
                     icon: "RefreshIcon",
                     label: Strings.REFETCH,

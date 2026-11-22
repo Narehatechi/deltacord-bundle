@@ -1,6 +1,8 @@
 import { formatString, Strings } from "@core/i18n";
 import AddonPage from "@core/ui/components/AddonPage";
 import ThemeCard from "@core/ui/settings/pages/Themes/ThemeCard";
+import { openThemeEditor } from "@core/ui/settings/pages/Themes/ThemeEditor";
+import { NavigationNative } from "@metro/common";
 import { useProxy } from "@core/vendetta/storage";
 import { getCurrentTheme, installTheme, themes, VdThemeInfo } from "@lib/addons/themes";
 import { colorsPref } from "@lib/addons/themes/colors/preferences";
@@ -41,6 +43,18 @@ export default function Themes() {
                     onPress={() => delete settings.safeMode?.currentThemeId}
                     style={{ marginTop: 8 }}
                 />
+            }}
+            ListHeaderComponent={() => {
+                const navigation = NavigationNative.useNavigation();
+                return <View style={{ marginBottom: 8 }}>
+                    <Button
+                        size="md"
+                        variant="primary"
+                        text="Make your own theme"
+                        icon={findAssetId("PaintPaletteIcon") ?? findAssetId("PencilIcon")}
+                        onPress={() => openThemeEditor(navigation)}
+                    />
+                </View>;
             }}
             CardComponent={ThemeCard}
             OptionsActionSheetComponent={() => {
