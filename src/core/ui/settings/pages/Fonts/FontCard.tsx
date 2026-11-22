@@ -28,17 +28,31 @@ const useStyles = createStyles({
     }
 });
 
+const PREVIEW_STYLES = ["text-md/medium", "text-md/normal", "text-md/semibold", "text-sm/medium", "text-sm/normal"];
+
+function previewStyle(): { fontFamily?: string; fontSize?: number; } {
+    try {
+        const sheet = TextStyleSheet as Record<string, { fontFamily?: string; fontSize?: number; } | undefined>;
+        for (const name of PREVIEW_STYLES) if (sheet?.[name]?.fontFamily) return sheet[name]!;
+        const any = Object.values(sheet ?? {}).find(style => style?.fontFamily);
+        if (any) return any;
+    } catch { }
+    return {};
+}
+
 function FontPreview({ font }: { font: FontDefinition; }) {
     const [loaded, setLoaded] = useState(false);
     const styles = useStyles();
 
     const TEXT_DEFAULT = useToken(tokens.colors.TEXT_DEFAULT);
-    const { fontFamily: fontFamilyList, fontSize } = TextStyleSheet["text-md/medium"];
-    const fontFamily = fontFamilyList!.split(/,/g)[0];
+    // Discord renames its text styles now and then: use whichever body style it has, and fall
+    // back to the font's first file if Discord's font isn't one this font replaces.
+    const { fontFamily: fontFamilyList, fontSize } = previewStyle();
+    const fontFamily = fontFamilyList?.split(/,/g)[0]?.trim() ?? "";
 
     const props = useMemo(() => ({
-        family: font.main[fontFamily],
-        size: fontSize! * PixelRatio.getFontScale(),
+        family: font.main[fontFamily] ?? Object.values(font.main)[0],
+        size: (fontSize ?? 16) * PixelRatio.getFontScale(),
         color: TEXT_DEFAULT,
         text:
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
