@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.35.1...v1.36.0) (2026-11-22)
+
+
+### Features
+
+* use your own sounds for all of Deltacord's sound effects ([a1afbe0](https://github.com/Narehatechi/deltacord-bundle/commit/a1afbe096f995b6b00cca28e7be54c8c4089f47c))
+
 ## [1.35.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.35.0...v1.35.1) (2026-11-22)
 
 
