@@ -11,6 +11,7 @@ import { NavigationNative } from "@metro/common";
 
 import DiscordSoundsPage from "./DiscordSoundsPage";
 import { announceSave, customSound, ExtrasSettings, extrasSettings, getExtras, importSoundFile, importSoundLink, previewSound, resetEffect, SoundEffect } from "./extras";
+import HideThingsPage from "./HideThingsPage";
 import { promptReload, syncThemeFont } from "./themeFont";
 
 const icon = (name: string) => {
@@ -90,6 +91,18 @@ export default function ExtrasPage() {
                 <SoundSlot effect="blip" title="Blip" what="When someone sends a message (Text blips)" builtin="Deltacord's blip" />
                 <SoundSlot effect="low" title="Low blip" what="The blip with Low blips on" builtin="Deltacord's low blip" />
                 <SoundSlot effect="save" title="Save chime" what="Saving a profile, and other saves with Save chime on" builtin="Deltacord's chime" />
+                <TableRowGroup title="Look">
+                    <TableRow
+                        label="Hide anything"
+                        subLabel="Switch off any of Discord's buttons, banners, tips and Nitro, Shop and Quest upsells."
+                        icon={icon("EyeSlashIcon") ?? icon("EyeIcon")}
+                        arrow={true}
+                        onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", {
+                            title: "Hide anything",
+                            render: () => <HideThingsPage />,
+                        })}
+                    />
+                </TableRowGroup>
                 <TableRowGroup title="Discord's sounds">
                     <TableRow
                         label="Replace Discord's sounds"

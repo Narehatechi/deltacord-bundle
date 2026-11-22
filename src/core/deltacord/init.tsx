@@ -20,6 +20,8 @@ export async function initDeltacordEarly() {
     // Your replacements for Discord's sounds: hooked before Discord prepares any sound.
     try {
         if (!settings.safeMode?.enabled) require("./discordSounds").patchDiscordSounds();
+        // Hide anything: notice Discord's parts as they load (and hide the ones you chose).
+        if (!settings.safeMode?.enabled) require("./hideThings").startHideThings();
     } catch (e) {
         console.error("[Deltacord] Couldn't set up Discord's sounds", e);
     }
