@@ -1,3 +1,10 @@
+## [1.35.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.35.0...v1.35.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* the Fonts page no longer crashes on Discord's new text styles ([cba877a](https://github.com/Narehatechi/deltacord-bundle/commit/cba877a60c44c277d6ce1183d7eb5ad34ef8d717))
+
 # [1.35.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.34.0...v1.35.0) (2026-11-22)
 
 
