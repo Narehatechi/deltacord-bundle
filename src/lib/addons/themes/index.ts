@@ -27,6 +27,7 @@ const builtinFlags = wrapSync(createStorage<{ installed?: Record<string, boolean
 function getBuiltinTheme(id: string) {
     return buildBuiltinTheme(id);
 }
+import { storageDebug } from "./colors/patches/storage";
 import { _colorRef, updateBunnyColor } from "./colors/updater";
 
 export interface VdThemeInfo {
@@ -235,6 +236,7 @@ export async function debugLoggedOut() {
         stage(`debug: failed ${String((e as Error)?.stack ?? e)}`.slice(0, 500), { quiet: true });
     }
     setTimeout(() => say("5s later"), 5000);
+    for (const line of storageDebug.log) stage(`debug storage: ${line}`, { quiet: true });
 }
 
 export function getCurrentTheme() {
@@ -268,6 +270,7 @@ export async function initThemes() {
         const nojs = await debugFlag("nojs");
         stage(`debug: stored theme ${currentTheme ? "yes" : "no"}${nojs ? ", nojs" : ""}`, { quiet: true });
         if (nojs) return;
+        for (const f of ["noget", "noset", "safe", "authget"] as const) storageDebug[f] = await debugFlag(f);
         initColors(currentTheme?.data ?? null, { storage: !await debugFlag("nostorage"), resolver: !await debugFlag("noresolver") });
 
         // Not in Safe Mode, where themes are off; they're added on the next normal launch.
