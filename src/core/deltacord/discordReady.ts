@@ -19,9 +19,8 @@ export function watchForDiscordReady() {
     const handlers: [string, () => void][] = [];
     const done = (how: string) => {
         markUiReady(how);
-        // Switching Discord to the theme goes through its appearance settings, which belong to an
-        // account: logged out, that kept Discord on its loading logo (Samsung reports). So the
-        // theme switch waits for the login.
+        // Logged out, the theme's colours are already in use on the login screen; the switch
+        // through Discord's appearance settings (which belong to an account) waits for the login.
         if (how === "logged out") watchForLogin();
         else onDiscordUp();
         for (const [type, handler] of handlers) {
