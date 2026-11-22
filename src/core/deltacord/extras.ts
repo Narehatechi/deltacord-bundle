@@ -29,6 +29,13 @@ export interface ExtrasSettings {
     /** Your own save sound: the link it came from, and where the downloaded copy is kept. */
     saveSoundUrl?: string | null;
     saveSoundFile?: string | null;
+    /** What your own save sound is called (a file's name, or the link). */
+    saveSoundName?: string | null;
+    /** Your own blip and low blip sounds (a kept copy on the phone, and what they're called). */
+    blipSoundFile?: string | null;
+    blipSoundName?: string | null;
+    lowSoundFile?: string | null;
+    lowSoundName?: string | null;
     /** Play the save sound when saving a profile. */
     profileSaveSound: boolean;
 }
@@ -277,6 +284,68 @@ export function resetSaveSound() {
     removeCustomSoundFile();
     extrasSettings.saveSoundUrl = null;
     extrasSettings.saveSoundFile = null;
+    extrasSettings.saveSoundName = null;
+}
+
+// ------------------------------------------------------- your own sound effects
+
+/** Deltacord's sound effects, each of which can be swapped for your own sound. */
+export type SoundEffect = "blip" | "low" | "save";
+
+const BUILTIN_FILE: Record<SoundEffect, string> = { blip: "blip.wav", low: "blip-low.wav", save: "save.wav" };
+
+/** Your own sound for [effect], if you set one: its kept file and what it's called. */
+export function customSound(effect: SoundEffect): { file: string; name: string; } | null {
+    const s = getExtras();
+    if (effect === "save") return s.saveSoundFile ? { file: s.saveSoundFile, name: s.saveSoundName ?? s.saveSoundUrl ?? "your sound" } : null;
+    if (effect === "blip") return s.blipSoundFile ? { file: s.blipSoundFile, name: s.blipSoundName ?? "your sound" } : null;
+    return s.lowSoundFile ? { file: s.lowSoundFile, name: s.lowSoundName ?? "your sound" } : null;
+}
+
+/** Plays [effect]: your own sound if you set one (and it plays), else Deltacord's. */
+export async function playEffect(effect: SoundEffect) {
+    if (effect === "save") return void await playSave();
+    const own = customSound(effect);
+    if (own && await playSource(own.file)) return;
+    await play(BUILTIN_FILE[effect]);
+}
+
+function storeCustom(effect: SoundEffect, file: string | null, name: string | null, url: string | null = null) {
+    const old = customSound(effect)?.file;
+    if (old && old !== file) removeSoundFile(old);
+    if (effect === "save") {
+        extrasSettings.saveSoundFile = file;
+        extrasSettings.saveSoundName = name;
+        extrasSettings.saveSoundUrl = url;
+    } else if (effect === "blip") {
+        extrasSettings.blipSoundFile = file;
+        extrasSettings.blipSoundName = name;
+    } else {
+        extrasSettings.lowSoundFile = file;
+        extrasSettings.lowSoundName = name;
+    }
+}
+
+/** Picks a sound file from the phone for [effect]. False if you backed out. */
+export async function importSoundFile(effect: SoundEffect): Promise<boolean> {
+    const picked = await pickSound();
+    if (!picked) return false;
+    storeCustom(effect, picked.file, picked.name);
+    await playEffect(effect);
+    return true;
+}
+
+/** Downloads the sound at [url] once and uses it for [effect]. */
+export async function importSoundLink(effect: SoundEffect, url: string) {
+    const file = await downloadSound(url, effect);
+    const name = decodeURIComponent(url.split("?")[0].split("/").pop() || "your sound");
+    storeCustom(effect, file, name, url.trim());
+    await playEffect(effect);
+}
+
+/** Goes back to Deltacord's own sound for [effect]. */
+export function resetEffect(effect: SoundEffect) {
+    storeCustom(effect, null, null);
 }
 
 // --------------------------------------------------------------- text blips
@@ -295,7 +364,7 @@ function onMessage(payload: any) {
     const now = Date.now();
     if (now - lastBlip < 120) return; // a burst of messages blips once, not machine-gun
     lastBlip = now;
-    play(settings.lowBlips ? "blip-low.wav" : "blip.wav");
+    void playEffect(settings.lowBlips ? "low" : "blip");
 }
 
 // ---------------------------------------------------------------- save toast
@@ -316,9 +385,8 @@ export function announceSave(what = "Saved") {
     playSaveSound();
 }
 
-export function previewSound(kind: "blip" | "low" | "save") {
-    if (kind === "save") void playSave();
-    else void play(kind === "blip" ? "blip.wav" : "blip-low.wav");
+export function previewSound(kind: SoundEffect) {
+    void playEffect(kind);
 }
 
 /** Starts the extras; returns how to stop them. */

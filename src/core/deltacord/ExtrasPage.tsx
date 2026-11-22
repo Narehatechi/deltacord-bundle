@@ -9,7 +9,7 @@ import { getCurrentTheme } from "@lib/addons/themes";
 import { NativeFileModule } from "@lib/api/native/modules";
 import { NavigationNative } from "@metro/common";
 
-import { announceSave, ExtrasSettings, extrasSettings, getExtras, previewSound, resetSaveSound, setCustomSaveSound } from "./extras";
+import { announceSave, customSound, ExtrasSettings, extrasSettings, getExtras, importSoundFile, importSoundLink, previewSound, resetEffect, SoundEffect } from "./extras";
 import { promptReload, syncThemeFont } from "./themeFont";
 
 const icon = (name: string) => {
@@ -81,37 +81,36 @@ export default function ExtrasPage() {
                     />
                 </TableRowGroup>
 
-                <SaveSoundPicker />
-
-                <View style={{ gap: 8 }}>
-                    <Text variant="text-sm/semibold" color="text-muted">Preview</Text>
-                    <Stack direction="horizontal" spacing={8}>
-                        <Button size="sm" variant="secondary" text="Blip" onPress={() => previewSound("blip")} />
-                        <Button size="sm" variant="secondary" text="Low blip" onPress={() => previewSound("low")} />
-                        <Button size="sm" variant="secondary" text="Chime" onPress={() => previewSound("save")} />
-                    </Stack>
-                    <Text variant="text-xs/medium" color="text-muted">
-                        Deltacord's own sounds are original. They play at your notification volume.
-                    </Text>
-                </View>
+                <Text variant="text-sm/semibold" color="text-muted">Sound effects</Text>
+                <Text variant="text-xs/medium" color="text-muted">
+                    Swap any of Deltacord's sounds for your own: pick a WAV, MP3 or OGG file from your phone, or paste a link (a Discord attachment link works). Short sounds work best. They play at your notification volume.
+                </Text>
+                <SoundSlot effect="blip" title="Blip" what="When someone sends a message (Text blips)" builtin="Deltacord's blip" />
+                <SoundSlot effect="low" title="Low blip" what="The blip with Low blips on" builtin="Deltacord's low blip" />
+                <SoundSlot effect="save" title="Save chime" what="Saving a profile, and other saves with Save chime on" builtin="Deltacord's chime" />
             </Stack>
         </ScrollView>
     );
 }
 
-function SaveSoundPicker() {
+/** One Deltacord sound effect: what plays now, play it, and swap it for a file or a link. */
+function SoundSlot({ effect, title, what, builtin }: { effect: SoundEffect; title: string; what: string; builtin: string; }) {
     useProxy(extrasSettings);
-    const { saveSoundUrl } = getExtras();
-    const [link, setLink] = useState(saveSoundUrl ?? "");
+    const own = customSound(effect);
+    const [linking, setLinking] = useState(false);
+    const [link, setLink] = useState("");
     const [error, setError] = useState("");
     const [busy, setBusy] = useState(false);
 
-    const use = async () => {
+    const run = async (job: () => Promise<unknown>, done: string) => {
         setBusy(true);
         setError("");
         try {
-            await setCustomSaveSound(link);
-            showToast("★ Save sound set", findAssetId("StarIcon"));
+            if (await job() !== false) {
+                showToast(`★ ${done}`, findAssetId("StarIcon"));
+                setLinking(false);
+                setLink("");
+            }
         } catch (e: any) {
             setError(e?.message ?? String(e));
         } finally {
@@ -120,35 +119,44 @@ function SaveSoundPicker() {
     };
 
     return (
-        <View style={{ gap: 8 }}>
-            <Text variant="text-sm/semibold" color="text-muted">Save sound</Text>
-            <Text variant="text-xs/medium" color="text-muted">
-                {saveSoundUrl
-                    ? "Using your own sound for saves (profile saves, and other saves with Save chime on)."
-                    : "Using Deltacord's chime. To use your own, paste a link to a short WAV, MP3 or OGG file. A Discord attachment link works: send the file to yourself, long-press it and copy the link. It's downloaded once and kept on your phone."}
-            </Text>
-            <TextInput
-                size="md"
-                value={link}
-                placeholder="https://…/sound.wav"
-                isClearable={true}
-                onChange={(v: string) => {
-                    setLink(v);
-                    if (error) setError("");
-                }}
-                returnKeyType="done"
-                onSubmitEditing={use}
-                state={error ? "error" : undefined}
-                errorMessage={error || undefined}
+        <TableRowGroup title={title}>
+            <TableRow
+                label={own ? own.name : builtin}
+                subLabel={`${own ? "Your sound" : "Built in"} · ${what}`}
+                icon={<TableRow.Icon source={findAssetId(effect === "save" ? "StarIcon" : "ChatIcon")} />}
+                trailing={<Button size="sm" variant="secondary" text="Play" onPress={() => previewSound(effect)} />}
             />
-            <Stack direction="horizontal" spacing={8}>
-                <Button size="sm" variant="primary" text={busy ? "Downloading…" : "Use this sound"} disabled={busy || !link.trim()} onPress={use} />
-                {saveSoundUrl && <Button size="sm" variant="secondary" text="Back to Deltacord's chime" onPress={() => {
-                    resetSaveSound();
-                    setLink("");
-                }} />}
-            </Stack>
-        </View>
+            <View style={{ padding: 12, gap: 8 }}>
+                {linking && <TextInput
+                    size="md"
+                    value={link}
+                    placeholder="https://…/sound.wav"
+                    isClearable={true}
+                    onChange={(v: string) => {
+                        setLink(v);
+                        if (error) setError("");
+                    }}
+                    returnKeyType="done"
+                    onSubmitEditing={() => link.trim() && run(() => importSoundLink(effect, link), `${title} set`)}
+                    state={error ? "error" : undefined}
+                    errorMessage={error || undefined}
+                />}
+                {!linking && !!error && <Text variant="text-xs/medium" color="text-danger">{error}</Text>}
+                <Stack direction="horizontal" spacing={8}>
+                    {linking
+                        ? <Button size="sm" variant="primary" text={busy ? "Downloading…" : "Use this link"} disabled={busy || !link.trim()} onPress={() => run(() => importSoundLink(effect, link), `${title} set`)} />
+                        : <Button size="sm" variant="primary" text={busy ? "Importing…" : "Pick a file"} disabled={busy} onPress={() => run(() => importSoundFile(effect), `${title} set`)} />}
+                    <Button size="sm" variant="secondary" text={linking ? "Cancel" : "Use a link"} disabled={busy} onPress={() => {
+                        setLinking(!linking);
+                        setError("");
+                    }} />
+                    {own && !linking && <Button size="sm" variant="secondary" text="Reset" disabled={busy} onPress={() => {
+                        resetEffect(effect);
+                        showToast(`${title}: back to ${builtin}`, findAssetId("StarIcon"));
+                    }} />}
+                </Stack>
+            </View>
+        </TableRowGroup>
     );
 }
 
