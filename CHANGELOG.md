@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.34.0...v1.35.0) (2026-11-22)
+
+
+### Features
+
+* release the backup checksums and Translate improvements ([0c710b4](https://github.com/Narehatechi/deltacord-bundle/commit/0c710b419bb7fa62768c4ccf785232d7a2a6e9de)), closes [#3](https://github.com/Narehatechi/deltacord-bundle/issues/3)
+
 # [1.34.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.33.1...v1.34.0) (2026-10-31)
 
 
