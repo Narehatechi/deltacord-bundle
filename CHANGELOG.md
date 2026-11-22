@@ -1,3 +1,10 @@
+# [1.37.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.36.0...v1.37.0) (2026-11-22)
+
+
+### Features
+
+* Deltacord's theme editor ([5c45af1](https://github.com/Narehatechi/deltacord-bundle/commit/5c45af1bb165b0ddb57463cd21fe061ad8684320))
+
 # [1.36.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.35.1...v1.36.0) (2026-11-22)
 
 
