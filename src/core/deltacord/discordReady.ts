@@ -19,7 +19,11 @@ export function watchForDiscordReady() {
     const handlers: [string, () => void][] = [];
     const done = (how: string) => {
         markUiReady(how);
-        onDiscordUp();
+        // Switching Discord to the theme goes through its appearance settings, which belong to an
+        // account: logged out, that kept Discord on its loading logo (Samsung reports). So the
+        // theme switch waits for the login.
+        if (how === "logged out") watchForLogin();
+        else onDiscordUp();
         for (const [type, handler] of handlers) {
             try {
                 FluxDispatcher.unsubscribe(type, handler);
@@ -38,8 +42,13 @@ export function watchForDiscordReady() {
         }
     }
 
-    // Offline or slow: theme switches still happen once Discord has surely started.
-    setTimeout(() => onDiscordUp(), 15_000);
+    // Offline or slow: theme switches still happen once Discord has surely started (logged in).
+    setTimeout(() => {
+        try {
+            if (AuthenticationStore.isAuthenticated?.() === false && !AuthenticationStore.getToken?.()) return;
+        } catch { }
+        onDiscordUp();
+    }, 15_000);
 
     // Logged out: Discord goes to the login screen without connecting. Discord loads the saved
     // login in the background, so only decide once it's had time to, and only if Discord itself
@@ -54,4 +63,18 @@ export function watchForDiscordReady() {
             stage(`couldn't check login: ${String((e as Error)?.message ?? e)}`, { quiet: true });
         }
     }, 6000);
+}
+
+/** After logging in (from the login screen): now the theme can switch over. */
+function watchForLogin() {
+    const handler = () => {
+        try {
+            FluxDispatcher.unsubscribe("CONNECTION_OPEN", handler);
+        } catch { }
+        stage("logged in", { quiet: true });
+        onDiscordUp();
+    };
+    try {
+        FluxDispatcher.subscribe("CONNECTION_OPEN", handler);
+    } catch { }
 }
