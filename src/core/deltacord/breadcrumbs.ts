@@ -44,6 +44,20 @@ function nativeModule(...names: string[]): any {
 
 const files = () => nativeModule("NativeFileModule", "RTNFileManager", "DCDFileManager");
 
+// DEBUG (emulator test only): flags from pyoncord/debug-flags.txt.
+let debugFlags: Promise<Set<string>> | undefined;
+export function debugFlag(name: string): Promise<boolean> {
+    debugFlags ??= (async () => {
+        try {
+            const fm = files();
+            const path = `${fm.getConstants().DocumentsDirPath}/pyoncord/debug-flags.txt`;
+            if (await fm.fileExists(path)) return new Set(String(await fm.readFile(path, "utf8")).split(/\s+/).filter(Boolean));
+        } catch { }
+        return new Set<string>();
+    })();
+    return debugFlags.then(f => f.has(name));
+}
+
 let record: StartupRecord | undefined;
 let previous: StartupRecord | null = null;
 let showOnScreen = false;

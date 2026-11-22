@@ -8,8 +8,9 @@ import { Platform } from "react-native";
 import { announceSave, isUserTime } from "@core/deltacord/extras";
 import { onThemeChosen } from "@core/deltacord/themeFont";
 import { startingInSafeMode } from "@core/deltacord/safeModeGate";
-import { isFeatureOn } from "@core/deltacord/breadcrumbs";
+import { debugFlag, isFeatureOn, stage } from "@core/deltacord/breadcrumbs";
 import { settings } from "@lib/api/settings";
+import { findByProps, findByStoreName } from "@metro/wrappers";
 
 import initColors from "./colors";
 import { applyAndroidAlphaKeys, normalizeToHex } from "./colors/parser";
@@ -26,7 +27,7 @@ const builtinFlags = wrapSync(createStorage<{ installed?: Record<string, boolean
 function getBuiltinTheme(id: string) {
     return buildBuiltinTheme(id);
 }
-import { updateBunnyColor } from "./colors/updater";
+import { _colorRef, updateBunnyColor } from "./colors/updater";
 
 export interface VdThemeInfo {
     id: string;
@@ -204,6 +205,38 @@ export async function updateThemes() {
     await Promise.allSettled(Object.keys(themes).map(id => fetchTheme(id, currentTheme?.id === id)));
 }
 
+/** DEBUG: what to try when Discord is logged out. */
+export async function debugLoggedOut() {
+    const ThemeStore = findByStoreName("ThemeStore");
+    const say = (when: string) => {
+        try {
+            stage(`debug ${when}: ThemeStore.theme=${String(ThemeStore?.theme)} key=${_colorRef.key} current=${_colorRef.current ? _colorRef.current.reference : "none"} last=${_colorRef.lastSetDiscordTheme}`, { quiet: true });
+        } catch (e) {
+            stage(`debug ${when}: failed ${String(e)}`, { quiet: true });
+        }
+    };
+    say("logged out");
+    try {
+        if (await debugFlag("unregister")) {
+            _colorRef.current = null;
+            stage("debug: unregistered", { quiet: true });
+        }
+        if (await debugFlag("switch")) {
+            const data = getThemeFromLoader()?.data ?? getCurrentTheme()?.data ?? null;
+            updateBunnyColor(data, { update: true });
+            stage("debug: switched", { quiet: true });
+        }
+        if (await debugFlag("retheme")) {
+            const AppearanceManager = findByProps("updateTheme");
+            AppearanceManager.updateTheme(ThemeStore.theme === "dark" ? "darker" : "dark");
+            stage("debug: rethemed", { quiet: true });
+        }
+    } catch (e) {
+        stage(`debug: failed ${String((e as Error)?.stack ?? e)}`.slice(0, 500), { quiet: true });
+    }
+    setTimeout(() => say("5s later"), 5000);
+}
+
 export function getCurrentTheme() {
     return Object.values(themes).find(t => t.selected) ?? null;
 }
@@ -232,7 +265,10 @@ export async function initThemes() {
         await newAwaitStorage(colorsPref);
 
         const currentTheme = getThemeFromLoader();
-        initColors(currentTheme?.data ?? null);
+        const nojs = await debugFlag("nojs");
+        stage(`debug: stored theme ${currentTheme ? "yes" : "no"}${nojs ? ", nojs" : ""}`, { quiet: true });
+        if (nojs) return;
+        initColors(currentTheme?.data ?? null, { storage: !await debugFlag("nostorage"), resolver: !await debugFlag("noresolver") });
 
         // Not in Safe Mode, where themes are off; they're added on the next normal launch.
         if (!await startingInSafeMode()) {

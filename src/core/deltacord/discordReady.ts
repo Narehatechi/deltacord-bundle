@@ -8,7 +8,7 @@
 import { FluxDispatcher } from "@metro/common";
 import { findByStoreNameLazy } from "@metro/wrappers";
 
-import { onDiscordUp } from "@lib/addons/themes";
+import { debugLoggedOut, onDiscordUp } from "@lib/addons/themes";
 
 import { markUiReady, stage } from "./breadcrumbs";
 
@@ -22,7 +22,10 @@ export function watchForDiscordReady() {
         // Switching Discord to the theme goes through its appearance settings, which belong to an
         // account: logged out, that kept Discord on its loading logo (Samsung reports). So the
         // theme switch waits for the login.
-        if (how === "logged out") watchForLogin();
+        if (how === "logged out") {
+            watchForLogin();
+            debugLoggedOut();
+        }
         else onDiscordUp();
         for (const [type, handler] of handlers) {
             try {

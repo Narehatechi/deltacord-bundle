@@ -6,10 +6,10 @@ import { ColorManifest } from "./types";
 import { updateBunnyColor } from "./updater";
 
 /** @internal */
-export default function initColors(manifest: ColorManifest | null) {
+export default function initColors(manifest: ColorManifest | null, debug = { storage: true, resolver: true }) {
     const patches = [
-        patchStorage(),
-        patchDefinitionAndResolver(),
+        debug.storage ? patchStorage() : () => { },
+        debug.resolver ? patchDefinitionAndResolver() : () => { },
         patchChatBackground()
     ];
 
