@@ -2,7 +2,6 @@ import { formatString, Strings } from "@core/i18n";
 import AddonPage from "@core/ui/components/AddonPage";
 import ThemeCard from "@core/ui/settings/pages/Themes/ThemeCard";
 import { openThemeEditor } from "@core/ui/settings/pages/Themes/ThemeEditor";
-import { NavigationNative } from "@metro/common";
 import { useProxy } from "@core/vendetta/storage";
 import { getCurrentTheme, installTheme, themes, VdThemeInfo } from "@lib/addons/themes";
 import { colorsPref } from "@lib/addons/themes/colors/preferences";
@@ -11,6 +10,7 @@ import { Author } from "@lib/addons/types";
 import { findAssetId } from "@lib/api/assets";
 import { settings } from "@lib/api/settings";
 import { useObservable } from "@lib/api/storage";
+import { NavigationNative } from "@metro/common";
 import { ActionSheet, BottomSheetTitleHeader, Button, TableRowGroup, TableRowIcon, TableSwitchRow, TableRow, TableRadioGroup, TableRadioRow } from "@metro/common/components";
 import { View } from "react-native";
 

@@ -3,12 +3,13 @@ import AddonCard, { CardWrapper } from "@core/ui/components/AddonCard";
 import { showConfirmationAlert } from "@core/vendetta/alerts";
 import { useProxy } from "@core/vendetta/storage";
 import { fetchTheme, removeTheme, selectTheme, themes, VdThemeInfo } from "@lib/addons/themes";
+import { BUILTIN_THEME_IDS } from "@lib/addons/themes/builtin/deltarune";
+import { isCustomThemeId } from "@lib/addons/themes/custom";
 import { findAssetId } from "@lib/api/assets";
 import { settings } from "@lib/api/settings";
 import { clipboard, NavigationNative } from "@metro/common";
 import { showToast } from "@ui/toasts";
-import { isCustomThemeId } from "@lib/addons/themes/custom";
-import { BUILTIN_THEME_IDS } from "@lib/addons/themes/builtin/deltarune";
+
 import { openThemeEditor } from "./ThemeEditor";
 
 function selectAndApply(value: boolean, theme: VdThemeInfo) {
