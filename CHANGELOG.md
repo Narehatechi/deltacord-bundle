@@ -1,3 +1,10 @@
+## [1.41.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.41.0...v1.41.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* logged out, Deltacord leaves Discord's appearance settings alone ([c005897](https://github.com/Narehatechi/deltacord-bundle/commit/c005897c1d5d411e0000894b1f3b333857f886de))
+
 # [1.41.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.40.0...v1.41.0) (2026-11-22)
 
 
