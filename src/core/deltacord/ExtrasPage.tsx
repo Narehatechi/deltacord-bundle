@@ -3,7 +3,7 @@ import { findAssetId } from "@lib/api/assets";
 import { showToast } from "@lib/ui/toasts";
 import { Button, Stack, TableRadioGroup, TableRadioRow, TableRow, TableRowGroup, TableSwitchRow, Text, TextInput } from "@metro/common/components";
 import { useEffect, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 
 import { getCurrentTheme } from "@lib/addons/themes";
 import { NativeFileModule } from "@lib/api/native/modules";
@@ -33,6 +33,7 @@ export default function ExtrasPage() {
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
                 <StartupAnimationSwitch />
                 <StartupStylePicker />
+                <StartupAnimationEditor />
 
                 <TableRowGroup title="Font">
                     <TableSwitchRow
@@ -268,6 +269,88 @@ function StartupStylePicker() {
         >
             {ANIMATION_STYLES.map(([id, label]) => <TableRadioRow key={id} label={label} value={id} />)}
         </TableRadioGroup>
+    );
+}
+
+/** Your own word, credit line and colours for the startup animation (read by the patched app at launch). */
+const ANIMATION_FILE = "pyoncord/startup-animation.json";
+
+const ANIMATION_COLOURS = ["#FFFFFF", "#FFE14D", "#FF4D5E", "#FF8A00", "#33DD55", "#4DFCFF", "#3366FF", "#B48CFF", "#FF4DE1", "#F29AC2", "#FFCC33", "#8C8C8C"];
+
+interface AnimationConfig { text: string; credit: string; colors: "random" | "custom"; glow: string; sparks: string[]; }
+const DEFAULT_ANIMATION: AnimationConfig = { text: "", credit: "", colors: "random", glow: "#FFFFFF", sparks: ["#FFFFFF", "#FFE14D", "#4DFCFF", "#FF4DE1"] };
+
+function ColourChoice({ value, onChange }: { value: string; onChange: (v: string) => void; }) {
+    return (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {ANIMATION_COLOURS.map(c => <Pressable
+                key={c}
+                accessibilityRole="button"
+                accessibilityLabel={c}
+                onPress={() => onChange(c)}
+                style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: c, borderWidth: value.toUpperCase() === c ? 3 : 1, borderColor: value.toUpperCase() === c ? "#888888" : "rgba(128,128,128,0.4)" }}
+            />)}
+        </View>
+    );
+}
+
+function StartupAnimationEditor() {
+    const [config, setConfig] = useState<AnimationConfig | null>(null);
+    const [spark, setSpark] = useState(0);
+    useEffect(() => {
+        const path = `${NativeFileModule.getConstants().DocumentsDirPath}/${ANIMATION_FILE}`;
+        NativeFileModule.fileExists(path)
+            .then(async (exists: boolean) => exists ? JSON.parse(await NativeFileModule.readFile(path, "utf8")) : {})
+            .then((saved: Partial<AnimationConfig>) => setConfig({ ...DEFAULT_ANIMATION, ...saved, sparks: (saved.sparks?.length ? saved.sparks : DEFAULT_ANIMATION.sparks).slice(0, 4) }))
+            .catch(() => setConfig(DEFAULT_ANIMATION));
+    }, []);
+    if (!config) return null;
+
+    const update = (change: Partial<AnimationConfig>) => setConfig({ ...config, ...change });
+    const save = async (next = config) => {
+        try {
+            await NativeFileModule.writeFile("documents", ANIMATION_FILE, JSON.stringify(next), "utf8");
+            showToast("★ Saved · plays on the next launch", findAssetId("StarIcon"));
+        } catch {
+            showToast("Couldn't save the animation", findAssetId("XSmallIcon"));
+        }
+    };
+
+    return (
+        <TableRowGroup title="Your startup animation">
+            <View style={{ padding: 12, gap: 10 }}>
+                <Text variant="text-xs/medium" color="text-muted">Make the startup animation yours. Changes play the next time Discord opens (they need module 1941 or newer).</Text>
+                <TextInput size="md" label="Word" value={config.text} placeholder="DELTACORD" autoCapitalize="characters" maxLength={14} onChange={(v: string) => update({ text: v.toUpperCase() })} />
+                <TextInput size="md" label="Credit line" value={config.credit} placeholder="by Narehatechi" maxLength={30} onChange={(v: string) => update({ credit: v })} />
+                <Text variant="text-sm/semibold">Colours</Text>
+                <Stack direction="horizontal" spacing={8}>
+                    <Button size="sm" variant={config.colors === "random" ? "primary" : "secondary"} text="Random each launch" onPress={() => update({ colors: "random" })} />
+                    <Button size="sm" variant={config.colors === "custom" ? "primary" : "secondary"} text="My colours" onPress={() => update({ colors: "custom" })} />
+                </Stack>
+                {config.colors === "custom" && <View style={{ gap: 10 }}>
+                    <Text variant="text-xs/semibold" color="text-muted">Glow</Text>
+                    <ColourChoice value={config.glow} onChange={glow => update({ glow })} />
+                    <Text variant="text-xs/semibold" color="text-muted">Sparkles (tap one to change it)</Text>
+                    <View style={{ flexDirection: "row", gap: 8 }}>
+                        {config.sparks.map((c, i) => <Pressable
+                            key={i}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Sparkle colour ${i + 1}`}
+                            onPress={() => setSpark(i)}
+                            style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: c, borderWidth: spark === i ? 3 : 1, borderColor: spark === i ? "#888888" : "rgba(128,128,128,0.4)" }}
+                        />)}
+                    </View>
+                    <ColourChoice value={config.sparks[spark]} onChange={c => update({ sparks: config.sparks.map((s, i) => i === spark ? c : s) })} />
+                </View>}
+                <Stack direction="horizontal" spacing={8}>
+                    <Button size="sm" variant="primary" text="Save" onPress={() => save()} />
+                    <Button size="sm" variant="secondary" text="Back to Deltacord's" onPress={() => {
+                        setConfig(DEFAULT_ANIMATION);
+                        void save(DEFAULT_ANIMATION);
+                    }} />
+                </Stack>
+            </View>
+        </TableRowGroup>
     );
 }
 
