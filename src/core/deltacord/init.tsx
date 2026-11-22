@@ -109,6 +109,10 @@ export function initDeltacordLate() {
     }
     // A launch that got stuck is reported quietly: Doctor > Copy report has the details.
     if (isFeatureOn("crashguard")) showCrashNotice().catch(e => console.error("[Deltacord] Crash notice failed", e));
+    // A newer module (the part only the Manager can update): offer to update it.
+    setTimeout(() => {
+        require("./moduleUpdate").checkModuleUpdate().catch((e: unknown) => console.warn("[Deltacord] Module update check failed", e));
+    }, 8000);
     // Give Deltacord's themes their font (not during Safe Mode, when the theme is off anyway).
     if (isFeatureOn("fontsync") && isFeatureOn("theme") && !settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);
     // A quiet safety net, well after startup so it never slows Discord down.
