@@ -1,3 +1,10 @@
+# [1.38.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.37.0...v1.38.0) (2026-11-22)
+
+
+### Features
+
+* replace Discord's own sounds ([71dcd85](https://github.com/Narehatechi/deltacord-bundle/commit/71dcd858fd606ff14d660c9d7a02393a526c6375))
+
 # [1.37.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.36.0...v1.37.0) (2026-11-22)
 
 
