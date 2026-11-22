@@ -1,3 +1,10 @@
+## [1.42.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.42.0...v1.42.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* Discord no longer stays on its logo when you're logged out ([ba69267](https://github.com/Narehatechi/deltacord-bundle/commit/ba692673a8c507da65b9f543aa332fcaa39c4da2))
+
 # [1.42.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.41.1...v1.42.0) (2026-11-22)
 
 
