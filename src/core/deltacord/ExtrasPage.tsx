@@ -9,6 +9,7 @@ import { getCurrentTheme } from "@lib/addons/themes";
 import { NativeFileModule } from "@lib/api/native/modules";
 import { NavigationNative } from "@metro/common";
 
+import DiscordSoundsPage from "./DiscordSoundsPage";
 import { announceSave, customSound, ExtrasSettings, extrasSettings, getExtras, importSoundFile, importSoundLink, previewSound, resetEffect, SoundEffect } from "./extras";
 import { promptReload, syncThemeFont } from "./themeFont";
 
@@ -19,6 +20,7 @@ const icon = (name: string) => {
 
 export default function ExtrasPage() {
     useProxy(extrasSettings);
+    const navigation = NavigationNative.useNavigation();
     const settings = getExtras();
     const set = (key: keyof ExtrasSettings) => (value: boolean) => {
         (extrasSettings as Record<string, unknown>)[key] = value;
@@ -88,6 +90,18 @@ export default function ExtrasPage() {
                 <SoundSlot effect="blip" title="Blip" what="When someone sends a message (Text blips)" builtin="Deltacord's blip" />
                 <SoundSlot effect="low" title="Low blip" what="The blip with Low blips on" builtin="Deltacord's low blip" />
                 <SoundSlot effect="save" title="Save chime" what="Saving a profile, and other saves with Save chime on" builtin="Deltacord's chime" />
+                <TableRowGroup title="Discord's sounds">
+                    <TableRow
+                        label="Replace Discord's sounds"
+                        subLabel="Message, mention, calls, joining and leaving voice, mute and more: use your own or make them silent."
+                        icon={icon("BellIcon")}
+                        arrow={true}
+                        onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", {
+                            title: "Discord's sounds",
+                            render: () => <DiscordSoundsPage />,
+                        })}
+                    />
+                </TableRowGroup>
             </Stack>
         </ScrollView>
     );

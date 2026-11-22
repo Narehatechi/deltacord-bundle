@@ -17,6 +17,12 @@ import { ensureThemeFontAtStartup } from "./themeFont";
 import { getCurrentTheme } from "@lib/addons/themes";
 
 export async function initDeltacordEarly() {
+    // Your replacements for Discord's sounds: hooked before Discord prepares any sound.
+    try {
+        if (!settings.safeMode?.enabled) require("./discordSounds").patchDiscordSounds();
+    } catch (e) {
+        console.error("[Deltacord] Couldn't set up Discord's sounds", e);
+    }
     try {
         if (isFeatureOn("crashguard")) await initCrashGuard();
         else markGuardDecided();

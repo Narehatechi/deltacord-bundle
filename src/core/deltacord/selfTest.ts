@@ -124,6 +124,12 @@ export function runSelfTest(): SelfTestCheck[] {
             if (cropperStatus.patched) return `ready (${cropperStatus.hooks.join(", ")}) · opened ${cropperStatus.opened}, saved ${cropperStatus.saved} · Discord called: ${calls}`;
             return "waiting for Discord to load its image picker (open Edit Profile, then run Doctor again)";
         }],
+        ["Discord's sounds", () => {
+            const { discordSoundsStatus, discordSounds } = require("@core/deltacord/discordSounds");
+            if (!discordSoundsStatus.patched) return false;
+            const seen = discordSounds.seen ?? [];
+            return `hooked · ${Object.keys(discordSounds.replacements ?? {}).length} replaced · heard: ${seen.slice(-12).join(", ") || "none yet"}`;
+        }],
         ["Message changes applied", () => `${sendStats.sent}${sendStats.failed ? ` (${sendStats.failed} failed)` : ""}`],
     ];
     for (const [label, test] of shared) out.push(result(group, label, test));
