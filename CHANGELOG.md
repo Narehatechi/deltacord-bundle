@@ -1,3 +1,10 @@
+# [1.40.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.39.0...v1.40.0) (2026-11-22)
+
+
+### Features
+
+* make your own startup animation ([3f946c2](https://github.com/Narehatechi/deltacord-bundle/commit/3f946c21936a3dd63ad17fdcd179eb98a32f8e52))
+
 # [1.39.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.38.0...v1.39.0) (2026-11-22)
 
 
