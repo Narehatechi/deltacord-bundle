@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.42.1...v1.43.0) (2026-11-23)
+
+
+### Features
+
+* five remade start-up animations to choose from ([fa1c954](https://github.com/Narehatechi/deltacord-bundle/commit/fa1c954b11c300d1384364da39195be2fa2df881))
+
 ## [1.42.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.42.0...v1.42.1) (2026-11-22)
 
 
