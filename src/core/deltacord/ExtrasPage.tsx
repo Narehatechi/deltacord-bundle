@@ -228,7 +228,6 @@ const ANIMATION_STYLES: [string, string][] = [
     ["random", "Random (a different one each launch)"],
     ["starchart", "Star chart"],
     ["badsignal", "Bad signal"],
-    ["eclipse", "Eclipse"],
     ["blockdrop", "Block drop"],
     ["nightsign", "Night sign"],
     ["bootlog", "Boot log"],
