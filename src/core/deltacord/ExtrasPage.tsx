@@ -226,20 +226,11 @@ const ANIMATION_STYLE_FILE = "pyoncord/startup-animation-style";
 
 const ANIMATION_STYLES: [string, string][] = [
     ["random", "Random (a different one each launch)"],
-    ["upgraded", "Upgraded"],
-    ["fountain", "Dark Fountain"],
-    ["soul", "SOUL"],
-    ["battle", "Battle encounter"],
-    ["crt", "Old TV"],
-    ["savepoint", "Save Point"],
-    ["drop", "Letter Drop"],
-    ["warp", "Warp"],
-    ["door", "The Door"],
-    ["neon", "Neon Sign"],
-    ["dither", "Pixel Build"],
-    ["orbit", "Seven SOULs"],
-    ["rain", "Glyph Rain"],
-    ["fireworks", "Fireworks"],
+    ["starchart", "Star chart"],
+    ["badsignal", "Bad signal"],
+    ["blockdrop", "Block drop"],
+    ["nightsign", "Night sign"],
+    ["bootlog", "Boot log"],
 ];
 
 function StartupStylePicker() {
@@ -247,9 +238,9 @@ function StartupStylePicker() {
     useEffect(() => {
         const path = `${NativeFileModule.getConstants().DocumentsDirPath}/${ANIMATION_STYLE_FILE}`;
         NativeFileModule.fileExists(path)
-            .then(async (exists: boolean) => exists ? (await NativeFileModule.readFile(path, "utf8")).trim() : "upgraded")
-            .then((value: string) => setStyle(ANIMATION_STYLES.some(([id]) => id === value) ? value : "upgraded"))
-            .catch(() => setStyle("upgraded"));
+            .then(async (exists: boolean) => exists ? (await NativeFileModule.readFile(path, "utf8")).trim() : "starchart")
+            .then((value: string) => setStyle(ANIMATION_STYLES.some(([id]) => id === value) ? value : "starchart"))
+            .catch(() => setStyle("starchart"));
     }, []);
 
     if (!style) return null;
