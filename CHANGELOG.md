@@ -1,3 +1,10 @@
+## [1.47.4](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.3...v1.47.4) (2026-11-24)
+
+
+### Bug Fixes
+
+* the Jukebox call button can't crash Discord ([5e48984](https://github.com/Narehatechi/deltacord-bundle/commit/5e4898437f792a4baee5c546ba2c2f7946b5bc34))
+
 ## [1.47.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.2...v1.47.3) (2026-11-24)
 
 
