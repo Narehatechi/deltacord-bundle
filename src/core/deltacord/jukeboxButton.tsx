@@ -9,7 +9,7 @@ import { after } from "@lib/api/patcher";
 import { showSheet } from "@lib/ui/sheets";
 import { ActionSheet } from "@metro/common/components";
 import { findByProps, findByPropsLazy } from "@metro/wrappers";
-import { Fragment, cloneElement, createElement, isValidElement } from "react";
+import { Component, Fragment, cloneElement, createElement, isValidElement } from "react";
 
 import JukeboxPage, { jukebox } from "./JukeboxPage";
 
@@ -60,18 +60,52 @@ function asJukebox(node: any, depth = 0): any {
     return cloneElement(node, next);
 }
 
-/** The function that draws a component, whether plain, memo(...) or forwardRef(...). */
+const MEMO = Symbol.for("react.memo");
+const FORWARD_REF = Symbol.for("react.forward_ref");
+
+/**
+ * The function that draws a component, whether plain, memo(...) or forwardRef(...). Class
+ * components can't be drawn this way, so they're left alone.
+ */
 function renderOf(type: any): ((props: any) => any) | undefined {
-    if (typeof type === "function") return type;
-    if (typeof type?.type === "function") return type.type;
-    if (typeof type?.render === "function") return (props: any) => type.render(props, null);
+    if (typeof type === "function") return type.prototype?.isReactComponent ? undefined : type;
+    if (type?.$$typeof === MEMO) return renderOf(type.type);
+    if (type?.$$typeof === FORWARD_REF && typeof type.render === "function") return (props: any) => type.render(props, null);
     return undefined;
 }
 
+/**
+ * A component's name. Only real React components are looked into: Deltacord's own lazy
+ * components look things up when touched, and doing that here could throw.
+ */
 function nameOf(type: any): string | undefined {
-    if (!type || typeof type === "string") return undefined;
-    const name = type.displayName ?? type.name ?? type.type?.displayName ?? type.type?.name ?? type.render?.displayName ?? type.render?.name;
+    let name: any;
+    if (typeof type === "function") name = type.displayName ?? type.name;
+    else if (type?.$$typeof === MEMO) return nameOf(type.type);
+    else if (type?.$$typeof === FORWARD_REF) name = type.displayName ?? type.render?.displayName ?? type.render?.name;
     return typeof name === "string" ? name : undefined;
+}
+
+/** After any problem, the button stays away until Discord restarts, so nothing can keep crashing. */
+let broken = false;
+function giveUp(e: unknown) {
+    broken = true;
+    jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
+    console.error("[Deltacord] The Jukebox call button hit a problem and is off until restart", e);
+}
+
+/** Whatever happens inside, the Jukebox button draws nothing rather than breaking the call screen. */
+class Contained extends Component<{ children: any; }, { failed: boolean; }> {
+    state = { failed: false };
+    static getDerivedStateFromError() {
+        return { failed: true };
+    }
+    componentDidCatch(e: unknown) {
+        giveUp(e);
+    }
+    render() {
+        return this.state.failed ? null : this.props.children;
+    }
 }
 
 /** Names of call parts Discord has made this session, so the Jukebox page can show what's there. */
@@ -86,13 +120,8 @@ const isTarget = (name: string) => name === TARGET || (/Soundboard/.test(name) &
  * swapped.
  */
 function JukeboxDockButton({ soundboardButton, ...props }: { soundboardButton: (props: any) => any; [key: string]: any; }) {
-    const res = soundboardButton(props);
-    try {
-        return asJukebox(res);
-    } catch (e) {
-        jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
-        return null;
-    }
+    if (broken) return null;
+    return asJukebox(soundboardButton(props));
 }
 
 function withJukebox(type: any, ret: any) {
@@ -103,7 +132,8 @@ function withJukebox(type: any, ret: any) {
     jukeboxButtonStatus.drawn++;
     return createElement(Fragment, { key: (ret as any).key ?? undefined },
         ret,
-        createElement(JukeboxDockButton, { ...(ret as any).props, soundboardButton: render, key: "deltacord-jukebox" }),
+        createElement(Contained, { key: "deltacord-jukebox" },
+            createElement(JukeboxDockButton, { ...(ret as any).props, soundboardButton: render })),
     );
 }
 
@@ -116,15 +146,16 @@ export function startJukeboxButton() {
     // The soundboard button is made inside the call dock's own code, so it's caught as the dock
     // creates it, whatever wrapper it comes in.
     const onCreate = (args: any[], ret: any) => {
-        const type = args[0];
-        if (!type || typeof type === "string") return ret;
-        const name = nameOf(type);
-        if (!name || (name.indexOf("Soundboard") < 0 && name.indexOf("VoicePanel") < 0 && name.indexOf("Dock") < 0)) return ret;
+        if (broken) return ret;
         try {
+            const type = args[0];
+            if (!type || typeof type === "string") return ret;
+            const name = nameOf(type);
+            if (!name || (name.indexOf("Soundboard") < 0 && name.indexOf("VoicePanel") < 0 && name.indexOf("Dock") < 0)) return ret;
             if (seenCallParts.size < 80) seenCallParts.add(name);
             return isTarget(name) ? withJukebox(type, ret) : ret;
         } catch (e) {
-            jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
+            giveUp(e);
             return ret;
         }
     };
