@@ -2,7 +2,7 @@
  * Makes changes show straight away instead of after a reload.
  *
  * - refreshChat(): Discord only redraws a chat row when the message changes, so plugins that
- *   change how messages look (Message Logger, full timestamps, Hidden Channels...) would only
+ *   change how messages look (Deltalogger, full timestamps, Hidden Channels...) would only
  *   show on messages that arrive later. This redraws the messages already on screen.
  * - refreshProfile(): fetches your profile again with Discord's own code, so a loaded profile
  *   shows everywhere at once.

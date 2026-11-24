@@ -15,13 +15,14 @@ import { showToast } from "@lib/ui/toasts";
 import { FluxDispatcher } from "@metro/common";
 import { findByStoreNameLazy } from "@metro/wrappers";
 
-import { getSettings, logFor, logs, MAX_EDITS, scheduleSave } from "./store";
+import { bumpIndex, deletedIn, getSettings, logFor, logs, MAX_EDITS, scheduleSave } from "./store";
 
 const MessageStore = findByStoreNameLazy("MessageStore");
 const UserStore = findByStoreNameLazy("UserStore");
 const ChannelStore = findByStoreNameLazy("ChannelStore");
 const SelectedChannelStore = findByStoreNameLazy("SelectedChannelStore");
 const UserGuildSettingsStore = findByStoreNameLazy("UserGuildSettingsStore");
+const GuildMemberStore = findByStoreNameLazy("GuildMemberStore");
 
 /** What the logger has seen this launch (shown in its settings, to tell if it's working). */
 export const stats = {
@@ -32,6 +33,7 @@ export const stats = {
     editsLogged: 0,
     ghostPings: 0,
     restored: 0,
+    purges: 0,
 };
 
 /**
@@ -168,13 +170,26 @@ function shouldLog(record: any, channelId?: string, guildId?: string) {
     return true;
 }
 
-/** The message pinged me (not @everyone). */
-function pingsMe(record: any): boolean {
+/** The message pinged me: by name, or (if you turned that on) through @everyone or one of my roles. */
+function pingsMe(record: any, channelId?: string, guildId?: string): boolean {
     const me = myId();
     if (!me || record.author?.id === me) return false;
     const mentions: any[] = Array.isArray(record.mentions) ? record.mentions : [];
     if (mentions.some(m => m === me || m?.id === me)) return true;
-    return typeof record.content === "string" && record.content.includes(`<@${me}>`);
+    if (typeof record.content === "string" && (record.content.includes(`<@${me}>`) || record.content.includes(`<@!${me}>`))) return true;
+
+    if (!getSettings().ghostEveryone) return false;
+    try {
+        const raw = rawCache.get(record.id);
+        if (record.mentionEveryone ?? record.mention_everyone ?? raw?.mention_everyone) return true;
+        const roles: any[] = record.mentionRoles ?? record.mention_roles ?? raw?.mention_roles ?? [];
+        if (!Array.isArray(roles) || !roles.length) return false;
+        const guild = guildId ?? (channelId ? ChannelStore.getChannel?.(channelId)?.guild_id : undefined);
+        const mine: any[] = (guild && GuildMemberStore.getMember?.(guild, me)?.roles) || [];
+        return roles.some(r => mine.includes(r));
+    } catch {
+        return false;
+    }
 }
 
 function authorName(record: any) {
@@ -202,7 +217,7 @@ function recordFromRaw(raw: any): any {
     };
 }
 
-function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
+function keepDeleted(channelId: string, id: string, guildId?: string, bulk = false): boolean {
     if (bypassed.has(id)) return false;
     // Already kept (our own redispatches, or a message we put back after a restart).
     if (logs.get(id)?.deleted) return true;
@@ -216,11 +231,11 @@ function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
     if ((record.flags ?? 0) & EPHEMERAL_FLAG) return false;
 
     const settings = getSettings();
-    const ghost = pingsMe(record);
+    const ghost = pingsMe(record, channelId, guildId);
     if (ghost && settings.ghostPings) {
         stats.ghostPings++;
         showToast(`\u{1F47B} Ghost ping from ${authorName(record)} in ${placeName(channelId)}`, findAssetId("AtIcon") ?? findAssetId("BellIcon"));
-    } else if (settings.toastDeletes && channelId === SelectedChannelStore.getChannelId?.()) {
+    } else if (!bulk && settings.toastDeletes && channelId === SelectedChannelStore.getChannelId?.()) {
         showToast(`${authorName(record)} deleted a message`, findAssetId("TrashIcon"));
     }
     // A ghost ping is kept even from ignored places: that's the point of catching it.
@@ -231,6 +246,7 @@ function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
     log.deletedAt = Date.now();
     log.touched = Date.now();
     if (ghost) log.ghostPing = true;
+    if (bulk) log.bulk = true;
     log.author ??= { id: record.author?.id, name: authorName(record) };
     // Freshest content wins: the cache may hold an older version from before an edit.
     const raw = rawCache.get(id);
@@ -238,6 +254,7 @@ function keepDeleted(channelId: string, id: string, guildId?: string): boolean {
     log.raw = raw ? { ...raw, content } : { ...rawFromRecord(record), content };
     changed.add(id);
     stats.deletesKept++;
+    bumpIndex();
     scheduleSave();
     return true;
 }
@@ -334,8 +351,9 @@ function onLoadMessages(payload: any) {
 
     const channelId = payload.channelId;
     const saved: any[] = [];
-    for (const log of logs.values()) {
-        if (log.deleted && log.raw && log.channelId === channelId) saved.push(log.raw);
+    for (const id of deletedIn(channelId)) {
+        const raw = logs.get(id)?.raw;
+        if (raw) saved.push(raw);
     }
     if (!saved.length) return;
 
@@ -404,7 +422,14 @@ export function interceptMessages() {
                     const { ids, channelId, guildId } = payload;
                     if (!Array.isArray(ids)) return;
                     stats.deletesSeen += ids.length;
-                    const kept = ids.filter((id: string) => keepDeleted(channelId, id, guildId));
+                    const purge = ids.length >= 3;
+                    const kept = ids.filter((id: string) => keepDeleted(channelId, id, guildId, purge));
+                    if (purge) {
+                        stats.purges++;
+                        if (getSettings().purgeAlerts) {
+                            showToast(`${ids.length} messages were purged in ${placeName(channelId)}${kept.length ? ` (${kept.length} kept)` : ""}`, findAssetId("TrashIcon"));
+                        }
+                    }
                     if (!kept.length) return;
                     for (const id of kept) rerender(channelId, id, guildId);
                     const rest = ids.filter((id: string) => !kept.includes(id));
@@ -413,7 +438,7 @@ export function interceptMessages() {
                 }
             }
         } catch (e) {
-            console.error("[MessageLogger] Interceptor error", e);
+            console.error("[Deltalogger] Interceptor error", e);
         }
     });
 
@@ -429,6 +454,7 @@ export function removeLog(id: string) {
     const log = logs.get(id);
     if (!log) return;
     logs.delete(id);
+    bumpIndex();
     scheduleSave();
 
     bypassed.add(id);
@@ -457,5 +483,6 @@ export function removeLog(id: string) {
 export function clearAllLogs() {
     for (const id of [...logs.keys()]) removeLog(id);
     logs.clear();
+    bumpIndex();
     scheduleSave();
 }

@@ -9,7 +9,7 @@ interface CorePlugin {
 export const getCorePlugins = (): Record<string, CorePlugin> => ({
     "bunny.quickinstall": require("./quickinstall"),
     "bunny.badges": require("./badges"),
-    "deltacord.messagelogger": require("./messagelogger"),
+    "deltacord.messagelogger": require("./deltalogger"),
     "deltacord.tweaks": require("./tweaks"),
     "deltacord.hiddenchannels": require("./hiddenchannels"),
     "deltacord.cleanlinks": require("./cleanlinks"),

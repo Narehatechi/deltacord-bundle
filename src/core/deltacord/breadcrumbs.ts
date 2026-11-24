@@ -80,7 +80,7 @@ export const FEATURE_NAMES: Record<Feature, string> = {
     extras: "Extras (blips, save sounds)",
     crashguard: "Crash guard",
     fontsync: "Theme font",
-    logger: "Message Logger",
+    logger: "Deltalogger",
     plugins: "Your plugins",
     tweaks: "Tweaks",
     theme: "Theme",
