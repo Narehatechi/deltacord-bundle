@@ -1,3 +1,6 @@
+import { guardHook } from "./patchGuard";
+import { recordProblem, sourceOf } from "./problems";
+
 const {
     after: _after,
     before: _before,
@@ -16,12 +19,16 @@ interface PatchFn<Callback> {
     await(func: string, parent: Promise<unknown>, callback: Callback, once?: boolean): Unpatcher;
 }
 
+
+type Kind = "before" | "after" | "instead";
+
 type BeforeFn = PatchFn<(args: any[]) => unknown | unknown[]>;
 type InsteadFn = PatchFn<(args: any[], origFunc: Function) => unknown>;
 type AfterFn = PatchFn<(args: any[], ret: any) => unknown>;
 
-function create(fn: Function) {
+function create(fn: Function, kind: Kind) {
     function patchFn(this: any, ...args: any[]) {
+        args[2] = guardHook(kind, args[0], args[1], args[2], (where, error, madeAt, stopped) => recordProblem(where, error, sourceOf(error, madeAt), stopped));
         if (typeof args[1][_patcherDelaySymbol] === "function") {
             const delayCallback: DelayCallback = args[1][_patcherDelaySymbol];
 
@@ -56,6 +63,7 @@ function create(fn: Function) {
         thenable.then(target => {
             if (cancel) return;
             args[1] = target;
+            // patchFn adds the safety net; this callback is the plugin's own.
             unpatch = patchFn.apply(this, args);
         });
 
@@ -65,9 +73,9 @@ function create(fn: Function) {
     return Object.assign(patchFn, { await: promisePatchFn });
 }
 
-export const after = create(_after) as AfterFn;
-export const before = create(_before) as BeforeFn;
-export const instead = create(_instead) as InsteadFn;
+export const after = create(_after, "after") as AfterFn;
+export const before = create(_before, "before") as BeforeFn;
+export const instead = create(_instead, "instead") as InsteadFn;
 
 /** @internal */
 export default { after, before, instead };

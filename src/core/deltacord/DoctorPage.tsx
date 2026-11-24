@@ -124,6 +124,30 @@ export async function runChecks(): Promise<Check[]> {
         if (vd.length) add({ group: "Plugins", label: "Vendetta plugins", value: `${vdOn.length} of ${vd.length} on`, status: "info" });
     });
 
+    await safe("Problems caught", "Problems caught", async () => {
+        const { problemList } = require("@lib/api/problems");
+        const list = problemList();
+        if (!list.length) {
+            add({ group: "Problems caught", label: "This session", value: "none", status: "ok" });
+            return;
+        }
+        add({
+            group: "Problems caught",
+            label: "This session",
+            value: `${list.length} caught before they could crash Discord`,
+            status: "warn",
+            hint: "Copy the report and send it, so the cause can be fixed.",
+        });
+        for (const p of list.slice(0, 15)) {
+            add({
+                group: "Problems caught",
+                label: `${p.source}: ${p.where}`,
+                value: `${p.message}${p.count > 1 ? ` (${p.count}×)` : ""} · ${ago(p.last)}${p.stopped ? " · off until restart" : ""}`,
+                status: p.stopped ? "bad" : "warn",
+            });
+        }
+    });
+
     await safe("Deltacord", "Features", async () => {
         const c = loggerCounts();
         add({ group: "Deltacord", label: "Deltalogger", value: isLoggerRunning() ? `running · ${c.deleted} deleted, ${c.edited} edited` : "off", status: "info" });

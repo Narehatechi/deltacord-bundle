@@ -23,6 +23,14 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
     static contextType = ThemeContext;
     static getDerivedStateFromError = (error: Error) => ({ hasErr: true, error });
 
+    componentDidCatch(error: Error) {
+        // Listed in Doctor, with where it came from.
+        try {
+            const { recordProblem, sourceOf } = require("@lib/api/problems");
+            recordProblem("a Deltacord page or card", error, sourceOf(error));
+        } catch { }
+    }
+
     render() {
         if (!this.state.hasErr) return this.props.children;
 
