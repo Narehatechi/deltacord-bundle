@@ -16,6 +16,10 @@ interface Song { path: string; name: string; size: number; }
 
 export const jukebox = wrapSync(createStorage<{
     songs?: Song[];
+    /** Short sounds for the effects pad. */
+    effects?: Song[];
+    /** Sound effects loudness, 0-2. */
+    effectsVolume?: number;
     /** Music loudness, 0-2. */
     volume?: number;
     /** Your own voice while music plays, 0-1 (0: only the music goes out). */
@@ -37,6 +41,7 @@ interface State {
     micOpen?: boolean;
     micRate?: number;
     micReads?: number;
+    effectsPlaying?: number;
 }
 
 const VOLUMES = [0.25, 0.5, 0.75, 1, 1.5, 2];
@@ -81,7 +86,7 @@ async function nativeState(): Promise<State | null> {
 }
 
 function applySettings() {
-    native("deltacord.jukebox.set", jukebox.volume ?? 1, jukebox.voice ?? 1, jukebox.hear ?? true).catch(() => { });
+    native("deltacord.jukebox.set", jukebox.volume ?? 1, jukebox.voice ?? 1, jukebox.hear ?? true, jukebox.effectsVolume ?? 1).catch(() => { });
 }
 
 function fail(e: unknown) {
@@ -97,6 +102,77 @@ async function importSong() {
     } catch (e) {
         fail(e);
     }
+}
+
+async function importEffect() {
+    try {
+        const picked = await callNative("deltacord.files.pick", "audio/*", "pyoncord/jukebox", 5);
+        if (!picked?.path) return;
+        jukebox.effects = [...(jukebox.effects ?? []), { path: picked.path, name: prettyName(String(picked.name ?? "sound")), size: Number(picked.size) || 0 }];
+        showToast("Added to the sound effects", findAssetId("CheckmarkLargeIcon"));
+    } catch (e) {
+        fail(e);
+    }
+}
+
+function playEffect(effect: Song, micOpen: boolean) {
+    if (!micOpen) {
+        showToast("Join a voice call with your mic on first", findAssetId("CircleInformationIcon-primary"));
+        return;
+    }
+    applySettings();
+    native("deltacord.jukebox.effect", effect.path).catch(fail);
+}
+
+function removeEffect(effect: Song) {
+    openAlert("deltacord-jukebox-remove-effect", <AlertModal
+        title={`Remove ${effect.name}?`}
+        content="It's deleted from Deltacord. The file you imported it from stays where it was."
+        actions={<AlertActions>
+            <AlertActionButton text="Remove" variant="destructive" onPress={() => {
+                native("deltacord.jukebox.remove", effect.path).catch(() => { });
+                jukebox.effects = (jukebox.effects ?? []).filter(s => s.path !== effect.path);
+            }} />
+            <AlertActionButton text="Cancel" variant="secondary" />
+        </AlertActions>}
+    />);
+}
+
+/** The effects pad: a grid of buttons, each plays its sound through your mic straight away. */
+function EffectsPad({ state, inSheet }: { state: State; inSheet: boolean; }) {
+    const effects = jukebox.effects ?? [];
+    const effectsVolume = jukebox.effectsVolume ?? 1;
+    return <View style={{ gap: 10 }}>
+        <Text variant="text-sm/bold" color="text-muted">{`SOUND EFFECTS (${effects.length})`}</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {effects.map(effect => (
+                <Button
+                    key={effect.path}
+                    size="md"
+                    variant="secondary"
+                    style={{ flexGrow: 1, flexBasis: "30%" }}
+                    text={effect.name.length > 16 ? `${effect.name.slice(0, 15)}…` : effect.name}
+                    onPress={() => playEffect(effect, !!state.micOpen)}
+                    onLongPress={() => removeEffect(effect)}
+                />
+            ))}
+            <Button size="md" variant="primary" style={{ flexGrow: 1, flexBasis: "30%" }} text="+ Add" onPress={importEffect} />
+        </View>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+            {(state.effectsPlaying ?? 0) > 0 && <Button style={{ flex: 1 }} size="sm" variant="destructive" text="Stop sounds" onPress={() => {
+                native("deltacord.jukebox.stopEffects").catch(fail);
+            }} />}
+            <Button style={{ flex: 1 }} size="sm" variant="secondary" text={`Effects volume ${Math.round(effectsVolume * 100)}%`} onPress={() => {
+                jukebox.effectsVolume = VOLUMES[(VOLUMES.indexOf(effectsVolume) + 1) % VOLUMES.length] ?? 1;
+                applySettings();
+            }} />
+        </View>
+        <Text variant="text-xs/medium" color="text-muted">
+            {effects.length
+                ? `Tap one to play it through your mic, on top of any music. Long-press to remove.${inSheet ? "" : " Short sounds up to 5 MB."}`
+                : "Add short sounds (up to 5 MB) to play through your mic with one tap."}
+        </Text>
+    </View>;
 }
 
 function play(song: Song) {
@@ -194,6 +270,8 @@ export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; })
                         native("deltacord.jukebox.stop").then(refresh, fail);
                     }} />
                 </View>}
+
+                <EffectsPad state={state} inSheet={inSheet} />
 
                 <TableRowGroup title={`Songs and sounds (${songs.length})`}>
                     {songs.map(song => <TableRow
