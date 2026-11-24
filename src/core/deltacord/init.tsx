@@ -119,4 +119,23 @@ export function initDeltacordLate() {
     if (isFeatureOn("fontsync") && isFeatureOn("theme") && !settings.safeMode?.enabled) ensureThemeFontAtStartup(getCurrentTheme()?.id);
     // A quiet safety net, well after startup so it never slows Discord down.
     setTimeout(() => void autoBackupIfDue(), 90_000);
+
+    // A jukebox check, asked for by leaving a file named jukebox-selftest (used by Deltacord's
+    // own emulator test). The answer goes in jukebox-selftest-result.json.
+    setTimeout(async () => {
+        try {
+            const fs = require("@lib/api/native/fs");
+            if (!(await fs.fileExists("jukebox-selftest"))) return;
+            await fs.removeFile("jukebox-selftest");
+            let result: unknown;
+            try {
+                result = await require("@lib/api/native/bridge").callNative("deltacord.jukebox.selfTest");
+            } catch (e) {
+                result = { error: String((e as Error)?.message ?? e) };
+            }
+            await fs.writeFile("jukebox-selftest-result.json", JSON.stringify(result, null, 1));
+        } catch (e) {
+            console.error("[Deltacord] Jukebox self-test failed", e);
+        }
+    }, 15_000);
 }

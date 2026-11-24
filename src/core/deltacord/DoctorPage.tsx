@@ -125,6 +125,16 @@ export async function runChecks(): Promise<Check[]> {
     });
 
     await safe("Problems caught", "Problems caught", async () => {
+        // The last time Discord closed because of a crash in Java code (the module or Discord).
+        try {
+            const fs = require("@lib/api/native/fs");
+            if (await fs.fileExists("last-native-crash.txt")) {
+                const text = String(await fs.readFile("last-native-crash.txt"));
+                const [when, ...rest] = text.split("\n");
+                const what = rest.find((l: string) => l.trim() && !l.trim().startsWith("at ")) ?? "";
+                add({ group: "Problems caught", label: "Last crash that closed Discord", value: `${what.slice(0, 160)} · ${when}`, status: "bad", hint: "Copy the report and send it." });
+            }
+        } catch { }
         const { problemList } = require("@lib/api/problems");
         const list = problemList();
         if (!list.length) {
