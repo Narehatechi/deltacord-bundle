@@ -135,6 +135,26 @@ export async function runChecks(): Promise<Check[]> {
                 add({ group: "Problems caught", label: "Last crash that closed Discord", value: `${what.slice(0, 160)} · ${when}`, status: "bad", hint: "Copy the report and send it." });
             }
         } catch { }
+        // Android's own record of why Discord last closed (module 1.29.2): catches crashes in
+        // native code and Android closing a frozen app, which nothing else sees.
+        try {
+            const fs = require("@lib/api/native/fs");
+            if (await fs.fileExists("last-exit.txt")) {
+                const [, summary = "", details = "", ...trace] = String(await fs.readFile("last-exit.txt")).split("\n");
+                const normal = /closed by you|stopped by you|closed itself|permission changed/.test(summary);
+                add({
+                    group: "Problems caught",
+                    label: "Last time Discord closed",
+                    value: `${summary} (${details})`,
+                    status: normal ? "info" : "bad",
+                    hint: normal ? undefined : "Copy the report and send it.",
+                });
+                if (!normal) {
+                    const lines = trace.map((l: string) => l.trim()).filter(Boolean).slice(0, 25);
+                    lines.forEach((line: string, i: number) => add({ group: "Problems caught", label: `  trace ${i + 1}`, value: line.slice(0, 200), status: "info" }));
+                }
+            }
+        } catch { }
         const { problemList } = require("@lib/api/problems");
         const list = problemList();
         if (!list.length) {
