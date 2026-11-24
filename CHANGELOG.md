@@ -1,3 +1,10 @@
+# [1.48.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.4...v1.48.0) (2026-11-24)
+
+
+### Features
+
+* a safety net under every hook, so Deltacord and its plugins can't crash Discord ([5172bd5](https://github.com/Narehatechi/deltacord-bundle/commit/5172bd504c03db6d82b546e32884ee5918f7912e))
+
 ## [1.47.4](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.3...v1.47.4) (2026-11-24)
 
 
