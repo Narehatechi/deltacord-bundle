@@ -392,7 +392,7 @@ export async function initPlugins() {
     await awaitStorage(pluginRepositories, pluginSettings);
 
     // Safe Mode: only the essential built-in plugins run. Installed plugins and Deltacord's own
-    // feature plugins (Message Logger, Tweaks) stay off, so none of them can break it too.
+    // feature plugins (Deltalogger, Tweaks) stay off, so none of them can break it too.
     const safeMode = settings.safeMode?.enabled === true;
     const allowedInSafeMode = (id: string) => isCorePlugin(id) && !id.startsWith("deltacord.");
 

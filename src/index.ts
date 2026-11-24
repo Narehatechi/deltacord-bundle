@@ -5,7 +5,7 @@ import { markDiscordStarting } from "@core/deltacord/crashguard";
 import { initDeltacordEarly, initDeltacordLate } from "@core/deltacord/init";
 import { guardStep } from "@core/deltacord/startup";
 import { watchForDiscordReady } from "@core/deltacord/discordReady";
-import { startMessageLoggerEarly } from "@core/plugins/messagelogger";
+import { startMessageLoggerEarly } from "@core/plugins/deltalogger";
 import initSettings from "@core/ui/settings";
 import { initVendettaObject } from "@core/vendetta/api";
 import { VdPluginManager } from "@core/vendetta/plugins";
@@ -58,7 +58,7 @@ export default async () => {
         step("Deltacord", initDeltacordEarly),
         step("Themes", initThemes),
         step("Flux", injectFluxInterceptor),
-        step("Message Logger", crumbs.isFeatureOn("logger") ? startMessageLoggerEarly : skip),
+        step("Deltalogger", crumbs.isFeatureOn("logger") ? startMessageLoggerEarly : skip),
         step("Settings patches", patchSettings),
         step("Commands", patchCommands),
         step("JSX", patchJsx),

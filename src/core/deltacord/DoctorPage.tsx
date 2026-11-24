@@ -3,8 +3,8 @@
  * that can be copied and sent, turning "it's broken" into something fixable.
  */
 import { getCrashGuardState } from "@core/deltacord/crashguard";
-import { isLoggerRunning } from "@core/plugins/messagelogger";
-import { counts as loggerCounts } from "@core/plugins/messagelogger/store";
+import { isLoggerRunning } from "@core/plugins/deltalogger";
+import { counts as loggerCounts } from "@core/plugins/deltalogger/store";
 import { runningTweaks } from "@core/plugins/tweaks";
 import { VdPluginManager } from "@core/vendetta/plugins";
 import { fonts } from "@lib/addons/fonts";
@@ -126,7 +126,7 @@ export async function runChecks(): Promise<Check[]> {
 
     await safe("Deltacord", "Features", async () => {
         const c = loggerCounts();
-        add({ group: "Deltacord", label: "Message logger", value: isLoggerRunning() ? `running · ${c.deleted} deleted, ${c.edited} edited` : "off", status: "info" });
+        add({ group: "Deltacord", label: "Deltalogger", value: isLoggerRunning() ? `running · ${c.deleted} deleted, ${c.edited} edited` : "off", status: "info" });
         const tweaks = runningTweaks();
         add({ group: "Deltacord", label: "Tweaks", value: tweaks.length ? tweaks.join(", ") : "none on", status: "info" });
 

@@ -4,9 +4,9 @@
  * this session. Turns "a plugin doesn't work" into "this exact piece is missing".
  */
 import { hiddenState } from "@core/plugins/hiddenchannels";
-import { isLoggerRunning } from "@core/plugins/messagelogger";
-import { stats as loggerStats } from "@core/plugins/messagelogger/logger";
-import { rowManagerFound, rowsStyledCount } from "@core/plugins/messagelogger/rows";
+import { isLoggerRunning } from "@core/plugins/deltalogger";
+import { stats as loggerStats } from "@core/plugins/deltalogger/logger";
+import { rowManagerFound, rowsStyledCount } from "@core/plugins/deltalogger/rows";
 import { sendStats } from "@core/plugins/shared";
 import { cleanLink } from "@core/plugins/cleanlinks";
 import { calculate } from "@core/plugins/calculator";
@@ -30,7 +30,7 @@ const NEEDS: Record<string, Array<[string, () => boolean | string]>> = {
         ["Marking in chat", () => (rowManagerFound() ? `colours (${rowsStyledCount()} rows styled)` : "text notes (fallback)")],
         ["Caught this session", () => (isLoggerRunning()
             ? `${loggerStats.deletesKept}/${loggerStats.deletesSeen} deletes kept, ${loggerStats.editsLogged} edits, ${loggerStats.restored} restored`
-            : "logger not running")],
+            : "Deltalogger not running")],
     ],
     "deltacord.tweaks": [
         ["Analytics (track)", () => !!findByProps("track", "trackMaker") || !!findByProps("trackWithMetadata")],

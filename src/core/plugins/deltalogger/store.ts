@@ -1,5 +1,5 @@
 /**
- * Persistent storage for the message logger.
+ * Persistent storage for Deltalogger.
  *
  * Logs live in memory for fast lookups while rendering, and are written to
  * `pyoncord/deltacord-message-logs.json` (debounced) so they survive restarts.
@@ -46,7 +46,30 @@ export interface Settings {
     maxLogs: number;
     /** Forget logs older than this many days (0: never). */
     keepDays: number;
+    /** The colour deleted messages get (a key of DELETED_COLORS). */
+    deletedColor: string;
+    /** In an edited message's earlier versions, the words that were changed stand out. */
+    highlightChanges: boolean;
+    /** The label says how long a deleted message lasted ("lasted 12s"). */
+    showLifetime: boolean;
+    /** Tell me when a lot of messages are deleted at once (a purge). */
+    purgeAlerts: boolean;
+    /** @everyone, @here and pings of a role you have count as ghost pings too. */
+    ghostEveryone: boolean;
+    /** Add Deltalogger rows to the menu you get by long-pressing a logged message. */
+    menu: boolean;
 }
+
+/** Colours a deleted message can be shown in. */
+export const DELETED_COLORS: Record<string, { label: string; hex: string; }> = {
+    red: { label: "Red", hex: "#ED4245" },
+    orange: { label: "Orange", hex: "#F0883E" },
+    yellow: { label: "Yellow", hex: "#F5C400" },
+    pink: { label: "Pink", hex: "#EB459E" },
+    purple: { label: "Purple", hex: "#9B6DFF" },
+    grey: { label: "Grey", hex: "#9A9AA6" },
+};
+export const deletedHex = (key?: string) => (DELETED_COLORS[key ?? "red"] ?? DELETED_COLORS.red).hex;
 
 export const DEFAULT_SETTINGS: Settings = {
     logDeletes: true,
@@ -66,6 +89,12 @@ export const DEFAULT_SETTINGS: Settings = {
     toastDeletes: false,
     maxLogs: MAX_LOGS,
     keepDays: 0,
+    deletedColor: "red",
+    highlightChanges: true,
+    showLifetime: true,
+    purgeAlerts: true,
+    ghostEveryone: false,
+    menu: true,
 };
 
 export const settingsStore = wrapSync(createStorage<Partial<Settings>>(createMMKVBackend("DELTACORD_MESSAGE_LOGGER")));
@@ -97,6 +126,8 @@ export interface Log {
     current?: string;
     /** It pinged you and was deleted. */
     ghostPing?: boolean;
+    /** It went in a purge (many messages deleted at once). */
+    bulk?: boolean;
 }
 
 interface LogFile {
@@ -105,9 +136,41 @@ interface LogFile {
 }
 
 export const logs = new Map<string, Log>();
+
+// Deleted messages by channel, so putting them back into a chat doesn't walk every log each
+// time a page of messages loads. Rebuilt lazily after anything that could change it.
+let indexStale = true;
+const deletedByChannel = new Map<string, string[]>();
+export const bumpIndex = () => void (indexStale = true);
+
+/** Ids of the kept deleted messages in a channel. */
+export function deletedIn(channelId: string): string[] {
+    if (indexStale) {
+        deletedByChannel.clear();
+        for (const [id, log] of logs) {
+            if (!log.deleted || !log.raw) continue;
+            const list = deletedByChannel.get(log.channelId);
+            if (list) list.push(id);
+            else deletedByChannel.set(log.channelId, [id]);
+        }
+        indexStale = false;
+    }
+    return deletedByChannel.get(channelId) ?? [];
+}
+
+const BACKUP_FILE = `${LOG_FILE}.bak`;
 let loaded = false;
 let loading = false;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+
+function mergeFile(text: string): boolean {
+    const file = JSON.parse(text) as LogFile;
+    if (file?.version !== FILE_VERSION || !file.logs) return false;
+    for (const [id, log] of Object.entries(file.logs)) {
+        if (!logs.has(id)) logs.set(id, log);
+    }
+    return true;
+}
 
 /** Merges saved logs in; anything logged since startup wins over the saved copy. */
 export async function loadLogs() {
@@ -116,21 +179,24 @@ export async function loadLogs() {
 
     try {
         if (await fileExists(LOG_FILE)) {
-            const file = JSON.parse(await readFile(LOG_FILE)) as LogFile;
-            if (file?.version === FILE_VERSION && file.logs) {
-                for (const [id, log] of Object.entries(file.logs)) {
-                    if (!logs.has(id)) logs.set(id, log);
-                }
-            }
+            const text = await readFile(LOG_FILE);
+            // A copy of the last file that read fine, in case a later save is cut short.
+            if (mergeFile(text) && text.length > 2) writeFile(BACKUP_FILE, text).catch(() => { });
         }
     } catch (e) {
-        console.error("[MessageLogger] Couldn't read saved logs, starting fresh", e);
+        console.error("[Deltalogger] Couldn't read saved logs, trying the backup copy", e);
         // Keep the damaged file so the next save doesn't destroy what might still be recovered.
         try {
             await writeFile(`${LOG_FILE}.damaged`, await readFile(LOG_FILE));
         } catch { }
+        try {
+            if (await fileExists(BACKUP_FILE)) mergeFile(await readFile(BACKUP_FILE));
+        } catch (e2) {
+            console.error("[Deltalogger] The backup copy couldn't be read either, starting fresh", e2);
+        }
     }
 
+    bumpIndex();
     loading = false;
     loaded = true;
 }
@@ -142,11 +208,13 @@ function prune() {
     if (keepDays > 0) {
         const cutoff = Date.now() - keepDays * 86_400_000;
         for (const [id, log] of logs) if (log.touched < cutoff) logs.delete(id);
+        bumpIndex();
     }
     const limit = maxLogs > 0 ? maxLogs : MAX_LOGS;
     if (logs.size <= limit) return;
     const oldest = [...logs.entries()].sort(([, a], [, b]) => a.touched - b.touched);
     for (const [id] of oldest.slice(0, logs.size - limit)) logs.delete(id);
+    bumpIndex();
 }
 
 /** Saves soon, batching bursts of deletes/edits into one write. */
@@ -168,7 +236,7 @@ export async function saveNow() {
     try {
         await writeFile(LOG_FILE, JSON.stringify(file));
     } catch (e) {
-        console.error("[MessageLogger] Couldn't save logs", e);
+        console.error("[Deltalogger] Couldn't save logs", e);
     }
 }
 

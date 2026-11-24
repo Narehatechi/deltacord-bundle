@@ -64,7 +64,7 @@ export default function Plugins() {
             useObservable([pluginSettings]);
 
             const vdPlugins = Object.values(VdPluginManager.plugins).map(unifyVdPlugin);
-            // Deltacord's built-in plugins (Message Logger, Tweaks, …) are listed first, then installed ones.
+            // Deltacord's built-in plugins (Deltalogger, Tweaks, …) are listed first, then installed ones.
             const installed = [...registeredPlugins.values()].filter(p => isPluginInstalled(p.id));
             const builtIn = installed.filter(p => isCorePlugin(p.id)).map(unifyBunnyPlugin);
             const bnPlugins = installed.filter(p => !isCorePlugin(p.id)).map(unifyBunnyPlugin);

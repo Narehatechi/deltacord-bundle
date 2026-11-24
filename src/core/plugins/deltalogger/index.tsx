@@ -14,10 +14,11 @@ import { announceSave } from "@core/deltacord/extras";
 import { startingInSafeMode } from "@core/deltacord/safeModeGate";
 
 import { defineCorePlugin } from "..";
-import LogBrowser, { exportLogsText } from "./browser";
+import LogBrowser, { exportLogsJson, exportLogsText, LogStats } from "./browser";
 import { clearAllLogs, interceptMessages, stats } from "./logger";
+import { menuStatus, patchMessageMenu } from "./menu";
 import { patchRows, rowManagerFound, rowsStyledCount } from "./rows";
-import { counts, getSettings, KEEP_DAYS_CHOICES, loadLogs, MAX_LOGS_CHOICES, saveNow, setIgnored, Settings, settingsStore } from "./store";
+import { counts, DELETED_COLORS, getSettings, KEEP_DAYS_CHOICES, loadLogs, MAX_LOGS_CHOICES, saveNow, setIgnored, Settings, settingsStore } from "./store";
 
 const PLUGIN_ID = "deltacord.messagelogger";
 let cleanups: (() => void)[] = [];
@@ -30,6 +31,11 @@ function startLogger() {
     // Listen right away so nothing is missed, and merge saved logs in as soon as they're read.
     cleanups.push(interceptMessages());
     cleanups.push(patchRows());
+    try {
+        cleanups.push(patchMessageMenu());
+    } catch (e) {
+        console.error("[Deltalogger] Long-press rows are off", e);
+    }
     loadLogs();
 }
 
@@ -46,7 +52,7 @@ export async function startMessageLoggerEarly() {
         if (pluginSettings[PLUGIN_ID]?.enabled === false) return;
         startLogger();
     } catch (e) {
-        console.error("[MessageLogger] Early start failed; it will start with the other plugins", e);
+        console.error("[Deltalogger] Early start failed; it will start with the other plugins", e);
     }
 }
 
@@ -110,7 +116,9 @@ function SettingsComponent() {
         ? "Off"
         : stats.events === 0
             ? "Not receiving messages yet. If this stays, restart Discord."
-            : `Working. This session: ${stats.deletesKept} of ${stats.deletesSeen} deletes kept, ${stats.editsLogged} edits logged${stats.ghostPings ? `, ${stats.ghostPings} ghost pings` : ""}.`;
+            : `Working. This session: ${stats.deletesKept} of ${stats.deletesSeen} deletes kept, ${stats.editsLogged} edits logged${stats.ghostPings ? `, ${stats.ghostPings} ghost pings` : ""}${stats.purges ? `, ${stats.purges} purges` : ""}.`;
+    const colors = Object.keys(DELETED_COLORS);
+    const refreshChat = () => require("@core/deltacord/refresh").refreshChat();
     const ignored = (["ignoredUsers", "ignoredChannels", "ignoredGuilds"] as const)
         .flatMap(list => (settings[list] ?? []).map(id => ({ list, id })));
 
@@ -118,7 +126,7 @@ function SettingsComponent() {
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 38 }}>
             <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={24}>
                 <TableRowGroup title="Status">
-                    <TableRow label="Message Logger" subLabel={status} icon={icon(running && stats.events ? "CheckmarkLargeIcon" : "CircleInformationIcon-primary")} />
+                    <TableRow label="Deltalogger" subLabel={status} icon={icon(running && stats.events ? "CheckmarkLargeIcon" : "CircleInformationIcon-primary")} />
                     <TableRow
                         label="Marking in chat"
                         subLabel={rowManagerFound()
@@ -130,12 +138,22 @@ function SettingsComponent() {
                 <TableRowGroup>
                     <TableRow
                         arrow
-                        label="Browse deleted messages"
-                        subLabel={`${totals.deleted} deleted · ${totals.edited} edited · ${totals.ghostPings} ghost pings. Search, jump to them, copy or export.`}
+                        label="Browse what it caught"
+                        subLabel={`${totals.deleted} deleted · ${totals.edited} edited · ${totals.ghostPings} ghost pings. Search, filter, group, jump to them, open their files.`}
                         icon={icon("MagnifyingGlassIcon")}
                         onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", {
-                            title: "Deleted messages",
+                            title: "Deltalogger",
                             render: () => <LogBrowser />,
+                        })}
+                    />
+                    <TableRow
+                        arrow
+                        label="The numbers"
+                        subLabel="Who deletes and edits the most, where, and how the last week went."
+                        icon={icon("ListBulletsIcon")}
+                        onPress={() => navigation.push("BUNNY_CUSTOM_PAGE", {
+                            title: "Deltalogger numbers",
+                            render: () => <LogStats />,
                         })}
                     />
                 </TableRowGroup>
@@ -143,12 +161,28 @@ function SettingsComponent() {
                     {switchRow("logDeletes", "Keep deleted messages", "Deleted messages stay in the chat, marked (deleted).", "TrashIcon")}
                     {switchRow("logEdits", "Keep edit history", "Remembers what messages said before they were edited.", "PencilIcon")}
                     {switchRow("ghostPings", "Ghost ping alerts", "Tells you when someone pings you and deletes it, and keeps that message.", "AtIcon")}
+                    {switchRow("ghostEveryone", "Count @everyone and role pings", "A deleted @everyone, @here or ping of one of your roles is a ghost ping too.", "AtIcon")}
                     {switchRow("toastDeletes", "Tell me about deletes", "A small message when something is deleted in the chat you're looking at.", "BellIcon")}
+                    {switchRow("purgeAlerts", "Tell me about purges", "A small message when three or more messages are deleted at once, anywhere.", "BellIcon")}
                 </TableRowGroup>
                 <TableRowGroup title="In the chat">
-                    {switchRow("redText", "Red deleted messages", undefined, "PaintPaletteIcon")}
+                    {switchRow("redText", "Colour deleted messages", "Off: they keep their normal colour and only get a label.", "PaintPaletteIcon")}
+                    <TableRow
+                        label="Deleted colour"
+                        subLabel="Tap to change."
+                        icon={icon("PaintPaletteIcon")}
+                        trailing={<TableRow.TrailingText text={(DELETED_COLORS[settings.deletedColor] ?? DELETED_COLORS.red).label} />}
+                        onPress={() => {
+                            settingsStore.deletedColor = cycle(colors, colors.includes(settings.deletedColor) ? settings.deletedColor : "red");
+                            announceSave();
+                            refreshChat();
+                        }}
+                    />
                     {switchRow("showDeleteTime", "Show when it was deleted", "\"deleted 3:04 PM\" instead of \"deleted\".", "ClockIcon")}
+                    {switchRow("showLifetime", "Show how long it lasted", "\"lasted 12s\" on messages deleted within the hour.", "ClockIcon")}
                     {switchRow("showEditsInChat", "Show edit history in the chat", "Earlier versions show with the message.", "HistoryIcon")}
+                    {switchRow("highlightChanges", "Highlight what changed", "In earlier versions, the words an edit took out stand out.", "PencilIcon")}
+                    {switchRow("menu", "Long-press options", menuStatus.found ? "Long-press a logged message for its details, or to forget it." : "Discord's menu couldn't be found in this version.", "MoreHorizontalIcon")}
                 </TableRowGroup>
                 <TableRowGroup title="What to log">
                     {switchRow("onlyDMs", "Only DMs", "Skip servers; log direct messages and group chats.", "ChatIcon")}
@@ -201,7 +235,16 @@ function SettingsComponent() {
                         icon={icon("CopyIcon")}
                         onPress={() => {
                             clipboard.setString(exportLogsText());
-                            showToast("Message logs copied", findAssetId("CopyIcon"));
+                            showToast("Deltalogger's logs copied", findAssetId("CopyIcon"));
+                        }}
+                    />
+                    <TableRow
+                        label="Copy everything as data"
+                        subLabel="The same, as JSON with ids, times and file links."
+                        icon={icon("CopyIcon")}
+                        onPress={() => {
+                            clipboard.setString(exportLogsJson());
+                            showToast("Deltalogger's logs copied as data", findAssetId("CopyIcon"));
                         }}
                     />
                     <TableRow
@@ -221,7 +264,7 @@ function SettingsComponent() {
                                             clearAllLogs();
                                             saveNow();
                                             setNow(n => n + 1);
-                                            showToast("Message logs cleared", findAssetId("TrashIcon"));
+                                            showToast("Deltalogger's logs cleared", findAssetId("TrashIcon"));
                                         }}
                                     />
                                     <AlertActionButton text="Cancel" variant="secondary" />
@@ -238,9 +281,9 @@ function SettingsComponent() {
 export default defineCorePlugin({
     manifest: {
         id: PLUGIN_ID,
-        name: "Message Logger",
-        version: "2.0.0",
-        description: "Keeps deleted messages and edit history, catches ghost pings, and lets you search and export it all.",
+        name: "Deltalogger",
+        version: "3.0.0",
+        description: "Keeps deleted messages and edit history, shows what each edit changed, catches ghost pings and purges, and lets you search, sort and export it all.",
         authors: [{ name: "Deltacord" }],
     },
     start() {

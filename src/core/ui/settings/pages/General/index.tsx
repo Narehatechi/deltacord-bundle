@@ -5,7 +5,7 @@ import BackupPage from "@core/deltacord/BackupPage";
 import DoctorPage from "@core/deltacord/DoctorPage";
 import ExtrasPage from "@core/deltacord/ExtrasPage";
 import ProfilesPage from "@core/deltacord/profiles/ProfilesPage";
-import LogBrowser from "@core/plugins/messagelogger/browser";
+import LogBrowser from "@core/plugins/deltalogger/browser";
 import { TweaksSettings } from "@core/plugins/tweaks";
 import About from "@core/ui/settings/pages/General/About";
 import { useProxy } from "@core/vendetta/storage";
@@ -51,7 +51,7 @@ export default function General() {
                 </TableRowGroup>
                 <TableRowGroup title="Deltacord">
                     {([
-                        ["Deleted messages", "Everything the message logger kept, searchable.", "TrashIcon", "Deleted messages", () => <LogBrowser />],
+                        ["Deltalogger", "Every deleted and edited message it kept, searchable.", "TrashIcon", "Deltalogger", () => <LogBrowser />],
                         ["Tweaks", "No tracking, hide gift buttons, silent typing and more.", "SettingsIcon", "Tweaks", () => <TweaksSettings />],
                         ["Profiles", "Save and switch between profiles, everywhere or per server.", "UserIcon", "Profiles", () => <ProfilesPage />],
                         ["Extras", "Text blips, save sound and ★ Saved toasts.", "StarIcon", "Extras", () => <ExtrasPage />],
