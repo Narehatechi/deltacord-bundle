@@ -1,3 +1,10 @@
+# [1.51.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.50.0...v1.51.0) (2026-11-24)
+
+
+### Features
+
+* Doctor shows why Discord last closed, from Android's own record ([8335e5a](https://github.com/Narehatechi/deltacord-bundle/commit/8335e5adfbe40b44db9dab14e71a79f1fdce5889))
+
 # [1.50.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.49.1...v1.50.0) (2026-11-24)
 
 
