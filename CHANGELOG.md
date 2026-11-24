@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.48.0...v1.49.0) (2026-11-24)
+
+
+### Features
+
+* a sound effects pad in the Jukebox ([6e57c00](https://github.com/Narehatechi/deltacord-bundle/commit/6e57c0053ebc3138c28c3dc7f015aad4db30ea7c))
+
 # [1.48.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.4...v1.48.0) (2026-11-24)
 
 
