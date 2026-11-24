@@ -1,3 +1,10 @@
+## [1.47.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.1...v1.47.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* catch the soundboard button in more forms, and show what's in the call bar ([5c859d9](https://github.com/Narehatechi/deltacord-bundle/commit/5c859d9b461b9b02eb067d8a1313b2e37f8ea0ee))
+
 ## [1.47.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.0...v1.47.1) (2026-11-24)
 
 
