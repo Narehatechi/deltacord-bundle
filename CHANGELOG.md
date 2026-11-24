@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.46.0...v1.47.0) (2026-11-24)
+
+
+### Features
+
+* a Jukebox button in voice call controls ([0cb0039](https://github.com/Narehatechi/deltacord-bundle/commit/0cb0039d49d41b9cd3c7df8454d1b69defb1a938))
+
 # [1.46.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.45.1...v1.46.0) (2026-11-24)
 
 
