@@ -1,3 +1,11 @@
+# [1.50.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.49.1...v1.50.0) (2026-11-24)
+
+
+### Features
+
+* Doctor shows the last crash that closed Discord, and a jukebox self-test ([8adae13](https://github.com/Narehatechi/deltacord-bundle/commit/8adae1352da7537e93b3cba420cbf57fef25de60))
+* errors in Deltacord's buttons and actions can't close Discord ([4f4d8b1](https://github.com/Narehatechi/deltacord-bundle/commit/4f4d8b10c24848f4e85a89ac2c238bddc3fe59ba))
+
 ## [1.49.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.49.0...v1.49.1) (2026-11-24)
 
 
