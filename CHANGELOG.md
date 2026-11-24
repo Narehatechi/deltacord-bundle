@@ -1,3 +1,10 @@
+## [1.47.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.0...v1.47.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* the Jukebox button now shows in voice calls ([8e81dbe](https://github.com/Narehatechi/deltacord-bundle/commit/8e81dbee6416bd3eaab9e3aca84604c00cddfd76))
+
 # [1.47.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.46.0...v1.47.0) (2026-11-24)
 
 
