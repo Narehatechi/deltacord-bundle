@@ -1,3 +1,10 @@
+# [1.44.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.43.0...v1.44.0) (2026-11-24)
+
+
+### Features
+
+* the message logger is now Deltalogger, and does a lot more ([0cefe5f](https://github.com/Narehatechi/deltacord-bundle/commit/0cefe5f623a0b648d0dd7ef30904a617289a15de))
+
 # [1.43.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.42.1...v1.43.0) (2026-11-23)
 
 
