@@ -1,10 +1,3 @@
-# [1.45.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.44.0...v1.45.0) (2026-11-24)
-
-
-### Features
-
-* Deltacord's heart logo in its settings ([a3158b3](https://github.com/Narehatechi/deltacord-bundle/commit/a3158b314cf32a8a7efd5052c933b75f5df9aa3d))
-
 # [1.44.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.43.0...v1.44.0) (2026-11-24)
 
 
