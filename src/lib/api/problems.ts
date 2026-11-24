@@ -59,3 +59,16 @@ export function recordProblem(where: string, error: unknown, source: string, sto
 }
 
 export const problemList = () => [...problems.values()].sort((a, b) => b.last - a.last);
+
+/** Where Deltacord's own code and its plugins run, as it appears in error stacks. */
+const OURS = /cache\/deltacord\/bundle\.js|deltacord\.bundle|bunny-plugin\/|vendetta-plugin|plugins\/[a-z0-9-]+\/index\.js/i;
+
+/**
+ * Whether an error started in Deltacord's own code or a plugin (its first stack frame is ours),
+ * rather than in Discord's. Only those are safe to stop: Discord's own errors go to Discord.
+ */
+export function startedInDeltacord(stack: unknown): boolean {
+    if (typeof stack !== "string") return false;
+    const frame = stack.split("\n").map(l => l.trim()).find(l => l.startsWith("at ") || /@|\(.+:\d+:\d+\)$/.test(l));
+    return !!frame && OURS.test(frame);
+}

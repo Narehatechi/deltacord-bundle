@@ -80,3 +80,14 @@ test("a hook that keeps failing stops itself", () => {
     assert.equal(runs, 3);
     assert.equal(reports.filter(r => r.message === "again").at(-1)!.stopped, true);
 });
+
+test("startedInDeltacord only claims errors whose first frame is Deltacord's or a plugin's", async () => {
+    const { startedInDeltacord } = await import("../src/lib/api/problems.ts");
+    const ours = "TypeError: x is undefined\n    at onPress (address at /data/user/0/com.discord/cache/deltacord/bundle.js:1:2345)\n    at anonymous (address at index.android.bundle:1:99)";
+    const plugin = "Error: boom\n    at run (bunny-plugin/cool-1.0.0:3:7)\n    at x (index.android.bundle:1:1)";
+    const discords = "Error: nope\n    at render (address at /data/user/0/app.deltacord.discord/files/index.android.bundle:1:5)\n    at onPress (address at /data/user/0/app.deltacord.discord/cache/deltacord/bundle.js:1:2)";
+    assert.equal(startedInDeltacord(ours), true);
+    assert.equal(startedInDeltacord(plugin), true);
+    assert.equal(startedInDeltacord(discords), false);
+    assert.equal(startedInDeltacord(undefined), false);
+});

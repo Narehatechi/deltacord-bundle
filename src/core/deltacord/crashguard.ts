@@ -138,6 +138,15 @@ async function runCrashGuard() {
     try {
         const previousHandler = ErrorUtils.getGlobalHandler();
         ErrorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+            // An error that started in Deltacord's own code or a plugin (a button, a timer) is
+            // stopped here instead of closing Discord, and listed in Doctor.
+            try {
+                const problems = require("@lib/api/problems");
+                if (problems.startedInDeltacord(error?.stack)) {
+                    problems.recordProblem(isFatal ? "a button or action (would have closed Discord)" : "a button or action", error, problems.sourceOf(error));
+                    return;
+                }
+            } catch { }
             if (isFatal) {
                 current.lastCrash = { at: Date.now(), message: String(error?.message ?? error).slice(0, 500), suspect: findSuspect(error) };
                 writeState(current);
