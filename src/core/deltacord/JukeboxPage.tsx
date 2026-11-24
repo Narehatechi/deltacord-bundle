@@ -42,6 +42,18 @@ interface State {
 const VOLUMES = [0.25, 0.5, 0.75, 1, 1.5, 2];
 const VOICES: [number, string][] = [[1, "Mix with my voice"], [0.5, "My voice quieter"], [0, "Only the music"]];
 
+function buttonStatus() {
+    try {
+        const { jukeboxButtonStatus: b } = require("./jukeboxButton");
+        if (b.error) return `It hit a problem: ${b.error}`;
+        if (b.drawn) return "It's showing in calls.";
+        if (b.found) return "Discord's soundboard button was found.";
+        return "It shows up once you're in a call with the soundboard button.";
+    } catch {
+        return "";
+    }
+}
+
 const clock = (s = 0) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const prettyName = (name: string) => name.replace(/^picked-[a-z0-9]+-/, "").replace(/\.[a-z0-9]{2,4}$/i, "").replace(/_/g, " ");
 
@@ -207,7 +219,7 @@ export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; })
                     />
                     {!inSheet && <TableSwitchRow
                         label="Button in calls"
-                        subLabel="A Jukebox button next to the soundboard button in voice calls."
+                        subLabel={`A Jukebox button next to the soundboard button in voice calls. ${buttonStatus()}`}
                         value={jukebox.button ?? true}
                         onValueChange={(v: boolean) => void (jukebox.button = v)}
                     />}

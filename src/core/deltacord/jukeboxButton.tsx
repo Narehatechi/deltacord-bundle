@@ -2,13 +2,12 @@
  * A Jukebox button in the voice call controls, right after Discord's soundboard button.
  *
  * Discord's call controls (the dock with camera, mic, screen share, soundboard and hang up) are
- * made of buttons named like VoicePanelSoundboardButton. When that one draws, a copy of it is
- * drawn next to it with a music icon, that opens the Jukebox in a sheet instead.
+ * made of buttons named like VoicePanelSoundboardButton. When the dock makes that one, a copy of
+ * it is put next to it with a music icon, that opens the Jukebox in a sheet instead.
  */
-import { after } from "@lib/api/patcher";
+import { onJsxCreate } from "@lib/api/react/jsx";
 import { showSheet } from "@lib/ui/sheets";
 import { ActionSheet } from "@metro/common/components";
-import { onModuleLoaded } from "@metro/internals/modules";
 import { findByProps } from "@metro/wrappers";
 import { Fragment, cloneElement, createElement, isValidElement } from "react";
 
@@ -16,8 +15,6 @@ import JukeboxPage, { jukebox } from "./JukeboxPage";
 
 const TARGET = "VoicePanelSoundboardButton";
 export const jukeboxButtonStatus = { found: false, drawn: 0, error: "" };
-
-const patched = new WeakSet<object>();
 
 function JukeboxSheet() {
     return <ActionSheet>
@@ -63,43 +60,18 @@ function asJukebox(node: any, depth = 0): any {
     return cloneElement(node, next);
 }
 
-function patch(container: any, key: string) {
-    if (patched.has(container)) return;
-    patched.add(container);
-    jukeboxButtonStatus.found = true;
-    after(key, container, (_args: any[], res: any) => {
-        try {
-            if (jukebox.button === false || !isValidElement(res)) return res;
-            jukeboxButtonStatus.drawn++;
-            return <Fragment>
-                {res}
-                <Fragment key="deltacord-jukebox">{asJukebox(res)}</Fragment>
-            </Fragment>;
-        } catch (e) {
-            jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
-            return res;
-        }
-    });
-}
-
-const named = (fn: any) => typeof fn === "function" && (fn.displayName ?? fn.name) === TARGET;
-
-function scan(exports: any) {
-    if (!exports || (typeof exports !== "object" && typeof exports !== "function")) return;
-    const keys = typeof exports === "object" ? Object.keys(exports).slice(0, 24) : [];
-    for (const key of ["default", ...keys.filter(k => k !== "default")]) {
-        let value: any;
-        try {
-            value = exports[key];
-        } catch {
-            continue;
-        }
-        if (named(value)) patch(exports, key);
-        else if (value && typeof value === "object") {
-            // memo(...) and forwardRef(...) keep the real function inside.
-            if (named(value.type)) patch(value, "type");
-            else if (named(value.render)) patch(value, "render");
-        }
+/**
+ * Discord's soundboard button, drawn again as the Jukebox button. The soundboard button's own
+ * code runs (so it looks and behaves like the others in the dock), then its press and icon are
+ * swapped.
+ */
+function JukeboxDockButton({ soundboardButton, ...props }: { soundboardButton: (props: any) => any; [key: string]: any; }) {
+    const res = soundboardButton(props);
+    try {
+        return asJukebox(res);
+    } catch (e) {
+        jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
+        return null;
     }
 }
 
@@ -107,9 +79,19 @@ let started = false;
 export function startJukeboxButton() {
     if (started) return;
     started = true;
-    onModuleLoaded(exports => {
+    // The soundboard button is made inside the dock's own code, so it's caught as it's created.
+    onJsxCreate(TARGET, (Component: any, ret: any) => {
         try {
-            scan(exports);
-        } catch { }
+            jukeboxButtonStatus.found = true;
+            if (jukebox.button === false || !isValidElement(ret) || typeof Component !== "function") return ret;
+            jukeboxButtonStatus.drawn++;
+            return createElement(Fragment, { key: (ret as any).key ?? undefined },
+                ret,
+                createElement(JukeboxDockButton, { ...(ret as any).props, soundboardButton: Component, key: "deltacord-jukebox" }),
+            );
+        } catch (e) {
+            jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
+            return ret;
+        }
     });
 }
