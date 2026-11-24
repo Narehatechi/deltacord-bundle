@@ -1,3 +1,10 @@
+## [1.45.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.45.0...v1.45.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* put back the previous Deltacord icon (revert the heart logo) ([7f35a93](https://github.com/Narehatechi/deltacord-bundle/commit/7f35a930703d05d8065eae2cbf29418b9df244f4))
+
 # [1.44.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.43.0...v1.44.0) (2026-11-24)
 
 
