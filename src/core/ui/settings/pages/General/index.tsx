@@ -4,6 +4,7 @@ import { PyoncordIcon } from "@core/ui/settings";
 import BackupPage from "@core/deltacord/BackupPage";
 import DoctorPage from "@core/deltacord/DoctorPage";
 import ExtrasPage from "@core/deltacord/ExtrasPage";
+import JukeboxPage from "@core/deltacord/JukeboxPage";
 import ProfilesPage from "@core/deltacord/profiles/ProfilesPage";
 import LogBrowser from "@core/plugins/deltalogger/browser";
 import { TweaksSettings } from "@core/plugins/tweaks";
@@ -54,6 +55,7 @@ export default function General() {
                         ["Deltalogger", "Every deleted and edited message it kept, searchable.", "TrashIcon", "Deltalogger", () => <LogBrowser />],
                         ["Tweaks", "No tracking, hide gift buttons, silent typing and more.", "SettingsIcon", "Tweaks", () => <TweaksSettings />],
                         ["Profiles", "Save and switch between profiles, everywhere or per server.", "UserIcon", "Profiles", () => <ProfilesPage />],
+                        ["Jukebox", "Play music and sounds through your mic in voice calls.", "MusicIcon", "Jukebox", () => <JukeboxPage />],
                         ["Extras", "Text blips, save sound and ★ Saved toasts.", "StarIcon", "Extras", () => <ExtrasPage />],
                         ["Backup & restore", "Save or move your plugins, themes and settings.", "DownloadIcon", "Backup & restore", () => <BackupPage />],
                         ["Doctor", "Check that everything's working and copy a report.", "WrenchIcon", "Doctor", () => <DoctorPage />],
