@@ -59,18 +59,29 @@ function buttonStatus() {
 const clock = (s = 0) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const prettyName = (name: string) => name.replace(/^picked-[a-z0-9]+-/, "").replace(/\.[a-z0-9]{2,4}$/i, "").replace(/_/g, " ");
 
-function nativeState(): State | null {
+/**
+ * Calls the module: the instant connection when this phone has it, otherwise the regular one
+ * (some Discord versions don't have the part the instant one goes through).
+ */
+async function native(method: string, ...args: any[]): Promise<any> {
     try {
-        return callNativeSync("deltacord.jukebox.state") ?? null;
+        return callNativeSync(method, ...args);
+    } catch {
+        return await callNative(method, ...args);
+    }
+}
+
+/** What's playing, or null if the module doesn't have the jukebox. */
+async function nativeState(): Promise<State | null> {
+    try {
+        return (await native("deltacord.jukebox.state")) ?? null;
     } catch {
         return null;
     }
 }
 
 function applySettings() {
-    try {
-        callNativeSync("deltacord.jukebox.set", jukebox.volume ?? 1, jukebox.voice ?? 1, jukebox.hear ?? true);
-    } catch { }
+    native("deltacord.jukebox.set", jukebox.volume ?? 1, jukebox.voice ?? 1, jukebox.hear ?? true).catch(() => { });
 }
 
 function fail(e: unknown) {
@@ -89,12 +100,8 @@ async function importSong() {
 }
 
 function play(song: Song) {
-    try {
-        applySettings();
-        callNativeSync("deltacord.jukebox.play", song.path, jukebox.loop ?? false);
-    } catch (e) {
-        fail(e);
-    }
+    applySettings();
+    native("deltacord.jukebox.play", song.path, jukebox.loop ?? false).catch(fail);
 }
 
 function removeSong(song: Song) {
@@ -103,9 +110,7 @@ function removeSong(song: Song) {
         content="It's deleted from Deltacord. The file you imported it from stays where it was."
         actions={<AlertActions>
             <AlertActionButton text="Remove" variant="destructive" onPress={() => {
-                try {
-                    callNativeSync("deltacord.jukebox.remove", song.path);
-                } catch { }
+                native("deltacord.jukebox.remove", song.path).catch(() => { });
                 jukebox.songs = (jukebox.songs ?? []).filter(s => s.path !== song.path);
             }} />
             <AlertActionButton text="Cancel" variant="secondary" />
@@ -115,19 +120,31 @@ function removeSong(song: Song) {
 
 export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; }) {
     useProxy(jukebox);
-    const [state, setState] = useState<State | null>(nativeState);
+    // undefined: still asking the module; null: the module doesn't have the jukebox.
+    const [state, setState] = useState<State | null | undefined>(undefined);
+    const refresh = () => nativeState().then(setState);
 
     useEffect(() => {
         applySettings();
-        const timer = setInterval(() => setState(nativeState()), 500);
-        return () => clearInterval(timer);
+        let alive = true;
+        const tick = () => nativeState().then(next => alive && setState(next));
+        tick();
+        const timer = setInterval(tick, 700);
+        return () => {
+            alive = false;
+            clearInterval(timer);
+        };
     }, []);
 
-    if (!state) {
-        return <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text variant="text-md/semibold" color="text-danger">
-                The jukebox needs a newer Deltacord module. Open Deltacord Manager to update it, then restart Discord.
-            </Text>
+    if (state === undefined) {
+        return <View style={{ padding: 16 }}>
+            <Text variant="text-md/medium" color="text-muted">Starting the jukebox…</Text>
+        </View>;
+    }
+    if (state === null) {
+        return <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
+            <Text variant="text-md/semibold" color="text-normal">The jukebox needs Deltacord module 1.28.0 or newer.</Text>
+            <Text variant="text-sm/medium" color="text-muted">Open Deltacord Manager and update the module, then restart Discord.</Text>
         </ScrollView>;
     }
 
@@ -171,12 +188,10 @@ export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; })
                 </TableRowGroup>
                 {active && <View style={{ flexDirection: "row", gap: 8 }}>
                     <Button style={{ flex: 1 }} size="md" variant="primary" text={state.paused ? "Resume" : "Pause"} onPress={() => {
-                        callNativeSync("deltacord.jukebox.pause", !state.paused);
-                        setState(nativeState());
+                        native("deltacord.jukebox.pause", !state.paused).then(refresh, fail);
                     }} />
                     <Button style={{ flex: 1 }} size="md" variant="destructive" text="Stop" onPress={() => {
-                        callNativeSync("deltacord.jukebox.stop");
-                        setState(nativeState());
+                        native("deltacord.jukebox.stop").then(refresh, fail);
                     }} />
                 </View>}
 
