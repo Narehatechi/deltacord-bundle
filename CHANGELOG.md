@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.45.1...v1.46.0) (2026-11-24)
+
+
+### Features
+
+* Jukebox, play music and sounds through your mic in voice calls ([8dc6434](https://github.com/Narehatechi/deltacord-bundle/commit/8dc64340e63b3f7014dda90b04b7c17cccc5648a))
+
 ## [1.45.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.45.0...v1.45.1) (2026-11-24)
 
 
