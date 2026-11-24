@@ -23,6 +23,8 @@ export const jukebox = wrapSync(createStorage<{
     /** Hear the music yourself as well. */
     hear?: boolean;
     loop?: boolean;
+    /** The Jukebox button in voice call controls. */
+    button?: boolean;
 }>(createMMKVBackend("DELTACORD_JUKEBOX")));
 
 interface State {
@@ -97,7 +99,7 @@ function removeSong(song: Song) {
     />);
 }
 
-export default function JukeboxPage() {
+export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; }) {
     useProxy(jukebox);
     const [state, setState] = useState<State | null>(nativeState);
 
@@ -137,8 +139,9 @@ export default function JukeboxPage() {
             : "Join a voice call and pick something to play. Only you need Deltacord; everyone hears it.";
 
     return (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 48 }}>
-            <Stack style={{ paddingVertical: 24, paddingHorizontal: 12 }} spacing={20}>
+        <ScrollView style={inSheet ? { maxHeight: 560 } : { flex: 1 }} contentContainerStyle={{ paddingBottom: inSheet ? 16 : 48 }}>
+            <Stack style={{ paddingVertical: inSheet ? 12 : 24, paddingHorizontal: inSheet ? 0 : 12 }} spacing={inSheet ? 14 : 20}>
+                {inSheet && <Text variant="heading-lg/extrabold">Jukebox</Text>}
                 <Text variant="text-sm/medium" color="text-muted">{status}</Text>
 
                 <TableRowGroup title="Now playing">
@@ -202,6 +205,12 @@ export default function JukeboxPage() {
                             applySettings();
                         }}
                     />
+                    {!inSheet && <TableSwitchRow
+                        label="Button in calls"
+                        subLabel="A Jukebox button next to the soundboard button in voice calls."
+                        value={jukebox.button ?? true}
+                        onValueChange={(v: boolean) => void (jukebox.button = v)}
+                    />}
                     <TableSwitchRow
                         label="Loop"
                         subLabel="Start again from the top when it ends (applies to the next song you play)."
@@ -210,9 +219,9 @@ export default function JukeboxPage() {
                     />
                 </TableRowGroup>
 
-                <Text variant="text-xs/medium" color="text-muted">
+                {!inSheet && <Text variant="text-xs/medium" color="text-muted">
                     Music sounds best with Noise Suppression off (Discord's Voice settings), since it's made to filter out anything that isn't a voice. Please only play things you're allowed to share, and be kind to the people in your call.
-                </Text>
+                </Text>}
             </Stack>
         </ScrollView>
     );
