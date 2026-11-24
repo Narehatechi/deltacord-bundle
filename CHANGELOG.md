@@ -1,3 +1,10 @@
+## [1.47.3](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.2...v1.47.3) (2026-11-24)
+
+
+### Bug Fixes
+
+* the Jukebox works without the module's instant connection ([b21c8ee](https://github.com/Narehatechi/deltacord-bundle/commit/b21c8ee85331558da2ff2818a55add599152ca50))
+
 ## [1.47.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.47.1...v1.47.2) (2026-11-24)
 
 
