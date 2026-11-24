@@ -5,10 +5,10 @@
  * made of buttons named like VoicePanelSoundboardButton. When the dock makes that one, a copy of
  * it is put next to it with a music icon, that opens the Jukebox in a sheet instead.
  */
-import { onJsxCreate } from "@lib/api/react/jsx";
+import { after } from "@lib/api/patcher";
 import { showSheet } from "@lib/ui/sheets";
 import { ActionSheet } from "@metro/common/components";
-import { findByProps } from "@metro/wrappers";
+import { findByProps, findByPropsLazy } from "@metro/wrappers";
 import { Fragment, cloneElement, createElement, isValidElement } from "react";
 
 import JukeboxPage, { jukebox } from "./JukeboxPage";
@@ -60,6 +60,26 @@ function asJukebox(node: any, depth = 0): any {
     return cloneElement(node, next);
 }
 
+/** The function that draws a component, whether plain, memo(...) or forwardRef(...). */
+function renderOf(type: any): ((props: any) => any) | undefined {
+    if (typeof type === "function") return type;
+    if (typeof type?.type === "function") return type.type;
+    if (typeof type?.render === "function") return (props: any) => type.render(props, null);
+    return undefined;
+}
+
+function nameOf(type: any): string | undefined {
+    if (!type || typeof type === "string") return undefined;
+    const name = type.displayName ?? type.name ?? type.type?.displayName ?? type.type?.name ?? type.render?.displayName ?? type.render?.name;
+    return typeof name === "string" ? name : undefined;
+}
+
+/** Names of call parts Discord has made this session, so the Jukebox page can show what's there. */
+export const seenCallParts = new Set<string>();
+
+/** Is this the soundboard button (the Jukebox button goes right after it)? */
+const isTarget = (name: string) => name === TARGET || (/Soundboard/.test(name) && /Button$/.test(name) && !/Picker|Sheet|Upsell|Item|Sound(Preview|Button)/.test(name));
+
 /**
  * Discord's soundboard button, drawn again as the Jukebox button. The soundboard button's own
  * code runs (so it looks and behaves like the others in the dock), then its press and icon are
@@ -75,23 +95,44 @@ function JukeboxDockButton({ soundboardButton, ...props }: { soundboardButton: (
     }
 }
 
+function withJukebox(type: any, ret: any) {
+    const render = renderOf(type);
+    if (!render || !isValidElement(ret)) return ret;
+    jukeboxButtonStatus.found = true;
+    if (jukebox.button === false) return ret;
+    jukeboxButtonStatus.drawn++;
+    return createElement(Fragment, { key: (ret as any).key ?? undefined },
+        ret,
+        createElement(JukeboxDockButton, { ...(ret as any).props, soundboardButton: render, key: "deltacord-jukebox" }),
+    );
+}
+
+const jsxRuntime = findByPropsLazy("jsx", "jsxs");
+
 let started = false;
 export function startJukeboxButton() {
     if (started) return;
     started = true;
-    // The soundboard button is made inside the dock's own code, so it's caught as it's created.
-    onJsxCreate(TARGET, (Component: any, ret: any) => {
+    // The soundboard button is made inside the call dock's own code, so it's caught as the dock
+    // creates it, whatever wrapper it comes in.
+    const onCreate = (args: any[], ret: any) => {
+        const type = args[0];
+        if (!type || typeof type === "string") return ret;
+        const name = nameOf(type);
+        if (!name || (name.indexOf("Soundboard") < 0 && name.indexOf("VoicePanel") < 0 && name.indexOf("Dock") < 0)) return ret;
         try {
-            jukeboxButtonStatus.found = true;
-            if (jukebox.button === false || !isValidElement(ret) || typeof Component !== "function") return ret;
-            jukeboxButtonStatus.drawn++;
-            return createElement(Fragment, { key: (ret as any).key ?? undefined },
-                ret,
-                createElement(JukeboxDockButton, { ...(ret as any).props, soundboardButton: Component, key: "deltacord-jukebox" }),
-            );
+            if (seenCallParts.size < 80) seenCallParts.add(name);
+            return isTarget(name) ? withJukebox(type, ret) : ret;
         } catch (e) {
             jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
             return ret;
         }
-    });
+    };
+    for (const key of ["jsx", "jsxs"]) {
+        try {
+            after(key, jsxRuntime, onCreate);
+        } catch (e) {
+            jukeboxButtonStatus.error = String((e as Error)?.message ?? e);
+        }
+    }
 }

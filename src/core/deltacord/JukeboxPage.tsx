@@ -48,6 +48,8 @@ function buttonStatus() {
         if (b.error) return `It hit a problem: ${b.error}`;
         if (b.drawn) return "It's showing in calls.";
         if (b.found) return "Discord's soundboard button was found.";
+        const { seenCallParts } = require("./jukeboxButton");
+        if (seenCallParts.size) return `Not found yet. Call parts seen: ${[...seenCallParts].join(", ")}`;
         return "It shows up once you're in a call with the soundboard button.";
     } catch {
         return "";
