@@ -62,7 +62,7 @@ export const VARIANTS: Record<string, Variant> = {
             [0.22, "#151026"], [0.28, "#211838"], [0.36, "#332A4D"], [0.46, "#544C6B"], [0.56, "#7D7694"],
             [0.66, "#A39DB6"], [0.76, "#C6C1D6"], [0.86, "#E4E1ED"], [0.94, "#F5F4F9"], [1, "#FFFFFF"],
         ],
-        background: { url: `${ASSETS}/deltarune/background.png`, alpha: 0.32 },
+        background: { url: `${ASSETS}/deltarune/background.png?v=2`, alpha: 0.32 },
     },
     lightworld: {
         id: "deltacord://builtin/lightworld",
