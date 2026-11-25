@@ -1,3 +1,10 @@
+## [1.51.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.51.0...v1.51.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* the Jukebox sheet has its own safety net, and caught problems outlive a restart ([f0a6051](https://github.com/Narehatechi/deltacord-bundle/commit/f0a60511df63efd17ddf3e15710fc2071f27474d))
+
 # [1.51.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.50.0...v1.51.0) (2026-11-24)
 
 
