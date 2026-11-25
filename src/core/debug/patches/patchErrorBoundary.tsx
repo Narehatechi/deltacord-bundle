@@ -35,6 +35,12 @@ export default function patchErrorBoundary() {
             return null;
         }
 
+        // It broke again: the crash screen shows. Noted, so it can still be seen after a restart.
+        try {
+            const { recordProblem, sourceOf } = require("@lib/api/problems");
+            recordProblem("a Discord screen (crash screen shown)", error, sourceOf(error));
+        } catch { }
+
         return <ErrorBoundaryScreen
             error={this.state.error}
             rerender={() => this.setState({ info: null, error: null })}

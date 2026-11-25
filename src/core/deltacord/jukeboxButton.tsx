@@ -6,6 +6,7 @@
  * it is put next to it with a music icon, that opens the Jukebox in a sheet instead.
  */
 import { after } from "@lib/api/patcher";
+import { ErrorBoundary } from "@lib/ui/components";
 import { showSheet } from "@lib/ui/sheets";
 import { ActionSheet } from "@metro/common/components";
 import { findByProps, findByPropsLazy } from "@metro/wrappers";
@@ -17,8 +18,11 @@ const TARGET = "VoicePanelSoundboardButton";
 export const jukeboxButtonStatus = { found: false, drawn: 0, error: "" };
 
 function JukeboxSheet() {
+    // Its own safety net: a problem in the sheet shows here instead of the crash screen.
     return <ActionSheet>
-        <JukeboxPage inSheet />
+        <ErrorBoundary>
+            <JukeboxPage inSheet />
+        </ErrorBoundary>
     </ActionSheet>;
 }
 

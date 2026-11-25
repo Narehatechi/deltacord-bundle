@@ -141,7 +141,8 @@ export async function runChecks(): Promise<Check[]> {
             const fs = require("@lib/api/native/fs");
             if (await fs.fileExists("last-exit.txt")) {
                 const [, summary = "", details = "", ...trace] = String(await fs.readFile("last-exit.txt")).split("\n");
-                const normal = /closed by you|stopped by you|closed itself|permission changed/.test(summary);
+                // Normal ways to close: you, Discord itself, or Android installing an update.
+                const normal = /closed by you|stopped by you|closed itself|permission changed|reason 1[56]\b|PackageUpdate|package update/i.test(summary);
                 add({
                     group: "Problems caught",
                     label: "Last time Discord closed",
@@ -155,7 +156,20 @@ export async function runChecks(): Promise<Check[]> {
                 }
             }
         } catch { }
-        const { problemList } = require("@lib/api/problems");
+        const { problemList, savedProblems, SESSION } = require("@lib/api/problems");
+        // Problems from earlier launches: a crash screen ends the session, so they'd be lost.
+        const earlier = (await savedProblems()).filter((p: any) => p.session !== SESSION).slice(0, 8);
+        for (const p of earlier) {
+            add({
+                group: "Problems caught",
+                label: `Earlier: ${p.source}: ${p.where}`,
+                value: `${p.message}${p.count > 1 ? ` (${p.count}×)` : ""} · ${ago(p.last)}`,
+                status: "warn",
+            });
+            for (const line of String(p.stack ?? "").split("\n").filter(Boolean).slice(0, 5)) {
+                add({ group: "Problems caught", label: "  at", value: line.slice(0, 200), status: "info" });
+            }
+        }
         const list = problemList();
         if (!list.length) {
             add({ group: "Problems caught", label: "This session", value: "none", status: "ok" });

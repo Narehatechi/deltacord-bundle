@@ -1,7 +1,8 @@
 /**
  * Problems Deltacord caught before they could crash Discord: a hook that threw, a screen that
  * broke and was retried. Doctor lists them, with where each came from, so the real cause can
- * still be found and fixed. Kept for this session only.
+ * still be found and fixed. The last few are also saved, so a problem that ended with a crash
+ * screen can still be seen after Discord is restarted.
  */
 
 export interface Problem {
@@ -15,6 +16,51 @@ export interface Problem {
     last: number;
     /** It kept failing, so it stopped itself until Discord restarts. */
     stopped?: boolean;
+    /** The first lines of where it happened. */
+    stack?: string;
+    /** Which launch of Discord it happened in. */
+    session?: number;
+}
+
+/** This launch of Discord. */
+export const SESSION = Date.now();
+const SAVED_FILE = "problems-log.json";
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
+
+function stackOf(error: unknown): string | undefined {
+    try {
+        const stack = (error as any)?.stack ?? (error as any)?.componentStack;
+        if (typeof stack !== "string") return undefined;
+        return stack.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 8).join("\n").slice(0, 900);
+    } catch {
+        return undefined;
+    }
+}
+
+/** Saves the newest problems (with earlier launches' ones) so they outlive a crash. */
+function scheduleSave() {
+    if (saveTimer) return;
+    saveTimer = setTimeout(async () => {
+        saveTimer = undefined;
+        try {
+            const fs = require("@lib/api/native/fs");
+            const earlier = (await savedProblems()).filter(p => p.session !== SESSION);
+            const all = [...problemList(), ...earlier].slice(0, 20);
+            await fs.writeFile(SAVED_FILE, JSON.stringify(all));
+        } catch { }
+    }, 800);
+}
+
+/** Problems saved by this and earlier launches, newest first. */
+export async function savedProblems(): Promise<Problem[]> {
+    try {
+        const fs = require("@lib/api/native/fs");
+        if (!(await fs.fileExists(SAVED_FILE))) return [];
+        const list = JSON.parse(await fs.readFile(SAVED_FILE));
+        return Array.isArray(list) ? list : [];
+    } catch {
+        return [];
+    }
 }
 
 const MAX = 50;
@@ -50,10 +96,11 @@ export function recordProblem(where: string, error: unknown, source: string, sto
         problem.last = now;
         problem.stopped ||= stopped;
     } else {
-        problem = { where, message, source, count: 1, first: now, last: now, stopped };
+        problem = { where, message, source, count: 1, first: now, last: now, stopped, stack: stackOf(error), session: SESSION };
         if (problems.size >= MAX) problems.delete(problems.keys().next().value!);
         problems.set(key, problem);
     }
+    scheduleSave();
     if (problem.count === 1 || stopped) console.error(`[Deltacord] Caught a problem in ${where} (${source})${stopped ? "; it's off until restart" : ""}`, error);
     return problem;
 }
