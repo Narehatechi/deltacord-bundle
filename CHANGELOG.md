@@ -1,3 +1,10 @@
+# [1.52.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.51.2...v1.52.0) (2026-11-25)
+
+
+### Features
+
+* a new starry Dark World background for the Deltarune theme ([f2427c6](https://github.com/Narehatechi/deltacord-bundle/commit/f2427c61a1d3cf0ce06955a884293bf9348ef19e))
+
 ## [1.51.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.51.1...v1.51.2) (2026-11-25)
 
 
