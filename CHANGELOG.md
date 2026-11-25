@@ -1,3 +1,10 @@
+## [1.51.2](https://github.com/Narehatechi/deltacord-bundle/compare/v1.51.1...v1.51.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* Discord's pop-ups can't crash Discord, and the Jukebox no longer uses them ([580912d](https://github.com/Narehatechi/deltacord-bundle/commit/580912dd2f3242d9fe639ddbe58aca6956bc94a7))
+
 ## [1.51.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.51.0...v1.51.1) (2026-11-25)
 
 
