@@ -7,7 +7,6 @@ import { createMMKVBackend, createStorage, useProxy, wrapSync } from "@core/vend
 import { findAssetId } from "@lib/api/assets";
 import { callNative, callNativeSync } from "@lib/api/native/bridge";
 import { openAlert } from "@lib/ui/alerts";
-import { showToast } from "@lib/ui/toasts";
 import { AlertActionButton, AlertActions, AlertModal, Button, Stack, TableRow, TableRowGroup, TableSwitchRow, Text } from "@metro/common/components";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -89,8 +88,15 @@ function applySettings() {
     native("deltacord.jukebox.set", jukebox.volume ?? 1, jukebox.voice ?? 1, jukebox.hear ?? true, jukebox.effectsVolume ?? 1).catch(() => { });
 }
 
+/**
+ * A short message shown at the top of the Jukebox. Not Discord's pop-ups: those crashed Discord
+ * when shown from a call or the Jukebox sheet.
+ */
+let note: { text: string; bad: boolean; at: number; } | undefined;
+const say = (text: string, bad = false) => void (note = { text, bad, at: Date.now() });
+
 function fail(e: unknown) {
-    showToast(String((e as Error)?.message ?? e), findAssetId("CircleXIcon-primary"));
+    say(String((e as Error)?.message ?? e), true);
 }
 
 async function importSong() {
@@ -98,7 +104,7 @@ async function importSong() {
         const picked = await callNative("deltacord.files.pick", "audio/*", "pyoncord/jukebox", 60);
         if (!picked?.path) return;
         jukebox.songs = [...(jukebox.songs ?? []), { path: picked.path, name: prettyName(String(picked.name ?? "song")), size: Number(picked.size) || 0 }];
-        showToast("Added to the jukebox", findAssetId("CheckmarkLargeIcon"));
+        say("Added to the jukebox");
     } catch (e) {
         fail(e);
     }
@@ -109,7 +115,7 @@ async function importEffect() {
         const picked = await callNative("deltacord.files.pick", "audio/*", "pyoncord/jukebox", 5);
         if (!picked?.path) return;
         jukebox.effects = [...(jukebox.effects ?? []), { path: picked.path, name: prettyName(String(picked.name ?? "sound")), size: Number(picked.size) || 0 }];
-        showToast("Added to the sound effects", findAssetId("CheckmarkLargeIcon"));
+        say("Added to the sound effects");
     } catch (e) {
         fail(e);
     }
@@ -117,7 +123,7 @@ async function importEffect() {
 
 function playEffect(effect: Song, micOpen: boolean) {
     if (!micOpen) {
-        showToast("Join a voice call with your mic on first", findAssetId("CircleInformationIcon-primary"));
+        say("Join a voice call with your mic on first");
         return;
     }
     applySettings();
@@ -250,6 +256,7 @@ export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; })
             <Stack style={{ paddingVertical: inSheet ? 12 : 24, paddingHorizontal: inSheet ? 0 : 12 }} spacing={inSheet ? 14 : 20}>
                 {inSheet && <Text variant="heading-lg/extrabold">Jukebox</Text>}
                 <Text variant="text-sm/medium" color="text-muted">{status}</Text>
+                {note && Date.now() - note.at < 5000 && <Text variant="text-sm/semibold" color={note.bad ? "text-danger" : "text-positive"}>{note.text}</Text>}
 
                 <TableRowGroup title="Now playing">
                     <TableRow

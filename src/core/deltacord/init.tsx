@@ -22,6 +22,8 @@ export async function initDeltacordEarly() {
         if (!settings.safeMode?.enabled) require("./discordSounds").patchDiscordSounds();
         // Hide anything: notice Discord's parts as they load (and hide the ones you chose).
         if (!settings.safeMode?.enabled) require("./hideThings").startHideThings();
+        // Safety nets around parts of Discord that can break by themselves (its pop-ups).
+        require("./safeSurfaces").startSafeSurfaces();
         // The Jukebox button in voice call controls.
         if (!settings.safeMode?.enabled) require("./jukeboxButton").startJukeboxButton();
     } catch (e) {
