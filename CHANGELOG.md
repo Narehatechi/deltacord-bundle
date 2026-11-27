@@ -1,3 +1,10 @@
+## [1.52.1](https://github.com/Narehatechi/deltacord-bundle/compare/v1.52.0...v1.52.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* the Jukebox sheet scrolls smoothly ([56cda1e](https://github.com/Narehatechi/deltacord-bundle/commit/56cda1edece84c36d3ae77d4c39ed256b04ac5d0))
+
 # [1.52.0](https://github.com/Narehatechi/deltacord-bundle/compare/v1.51.2...v1.52.0) (2026-11-25)
 
 
