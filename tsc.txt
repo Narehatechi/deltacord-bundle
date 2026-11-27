@@ -1,0 +1,14 @@
+src/core/deltacord/JukeboxPage.tsx(162,21): error TS2322: Type '{ key: string; size: "md"; variant: "secondary"; style: { flexGrow: number; flexBasis: "30%"; }; text: string; onPress: () => void; onLongPress: () => void; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'onLongPress' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+src/core/deltacord/JukeboxPage.tsx(297,25): error TS2322: Type '{ key: string; label: string; subLabel: string; icon: Element | undefined; onPress: () => void; onLongPress: () => void; }' is not assignable to type 'IntrinsicAttributes & TableRowProps'.
+  Property 'onLongPress' does not exist on type 'IntrinsicAttributes & TableRowProps'.
+src/core/deltacord/jukeboxButton.tsx(140,34): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '{ key: string; }' is not assignable to parameter of type 'Attributes & { children: any; }'.
+      Property 'children' is missing in type '{ key: string; }' but required in type '{ children: any; }'.
+tests/bytes.test.ts(4,37): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+tests/checksum.test.ts(4,41): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+tests/deltalogger.test.ts(4,71): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+tests/patcher-guard.test.ts(4,38): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+tests/patcher-guard.test.ts(85,49): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
+tests/translate.test.ts(4,67): error TS5097: An import path can only end with a '.ts' extension when 'allowImportingTsExtensions' is enabled.
