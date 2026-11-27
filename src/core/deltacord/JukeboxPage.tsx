@@ -200,6 +200,13 @@ function removeSong(song: Song) {
     />);
 }
 
+/** A page scrolls on its own; in the sheet, the sheet does the scrolling. */
+function Scroller({ inSheet, children }: { inSheet: boolean; children: any; }) {
+    return inSheet
+        ? <View style={{ paddingBottom: 16 }}>{children}</View>
+        : <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 48 }}>{children}</ScrollView>;
+}
+
 export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; }) {
     useProxy(jukebox);
     // undefined: still asking the module; null: the module doesn't have the jukebox.
@@ -252,7 +259,7 @@ export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; })
             : "Join a voice call and pick something to play. Only you need Deltacord; everyone hears it.";
 
     return (
-        <ScrollView style={inSheet ? { maxHeight: 560 } : { flex: 1 }} contentContainerStyle={{ paddingBottom: inSheet ? 16 : 48 }}>
+        <Scroller inSheet={inSheet}>
             <Stack style={{ paddingVertical: inSheet ? 12 : 24, paddingHorizontal: inSheet ? 0 : 12 }} spacing={inSheet ? 14 : 20}>
                 {inSheet && <Text variant="heading-lg/extrabold">Jukebox</Text>}
                 <Text variant="text-sm/medium" color="text-muted">{status}</Text>
@@ -337,6 +344,6 @@ export default function JukeboxPage({ inSheet = false }: { inSheet?: boolean; })
                     Music sounds best with Noise Suppression off (Discord's Voice settings), since it's made to filter out anything that isn't a voice. Please only play things you're allowed to share, and be kind to the people in your call.
                 </Text>}
             </Stack>
-        </ScrollView>
+        </Scroller>
     );
 }

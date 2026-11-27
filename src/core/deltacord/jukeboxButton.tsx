@@ -19,7 +19,8 @@ export const jukeboxButtonStatus = { found: false, drawn: 0, error: "" };
 
 function JukeboxSheet() {
     // Its own safety net: a problem in the sheet shows here instead of the crash screen.
-    return <ActionSheet>
+    // The sheet scrolls by itself; a scroll area inside it fought the pull-down gesture and got stuck.
+    return <ActionSheet scrollable>
         <ErrorBoundary>
             <JukeboxPage inSheet />
         </ErrorBoundary>
